@@ -1,0 +1,208 @@
+from dataclasses import dataclass
+from contextlib import contextmanager
+from threading import Thread
+import io
+import time
+import sys
+from pathlib import Path
+import datetime
+import shutil
+import subprocess
+import tempfile
+
+from typing import List, Optional, BinaryIO, TextIO
+
+import paramiko
+from paramiko.sftp_client import SFTPFile, SFTPClient
+from paramiko.channel import Channel
+
+
+@dataclass
+class ServerOpts:
+    local: bool = False
+    ssh_host: str = ""
+    ssh_user: str = ""
+    ssh_pwd: str = ""
+
+
+class ParamikoRemotePopen:
+    def __init__(self, channel: Channel):
+        self.channel: Channel = channel
+
+        self.channel.set_combine_stderr(True)
+        self.channel.get_pty()
+
+        self.returncode = -1
+
+    @contextmanager
+    def run(self, cmd, stdout: BinaryIO | TextIO):
+        # Create a background thread to output result to a file
+        bgthd = Thread(
+            target=ParamikoRemotePopen.output_fp,
+            name="run",
+            args=[self.channel, stdout],
+        )
+        bgthd.daemon = True
+        print("Starting thread")
+        bgthd.start()
+
+        # self.channel.setblocking(0)
+        # self.channel.settimeout(0.1)
+
+        print("Exec command in channel")
+        self.channel.exec_command(cmd)
+        # session.setblocking(0)
+        # session.settimeout(0.1)
+
+        try:
+            print("yield None")
+            yield None
+        finally:
+            print("Exiting the context manager")
+            self.channel.eof_received = True
+            # Wait for thread to exit
+            bgthd.join(1)
+
+            self.returncode = self.channel.exit_status
+
+    @classmethod
+    def output_fp(cls, channel: Channel, fp: BinaryIO | TextIO = sys.stdout):
+        print("Starting thread output_fp")
+        done = False
+        while not done:
+            if channel.exit_status_ready() or channel.eof_received:
+                done = True
+
+                # Wait for ~ 1s (time to read stdout/stderr)
+                start = time.perf_counter()
+                while True:
+                    if channel.recv_ready():
+                        # fp.write(channel.recv(65535))
+                        # print(channel.recv(65535))
+                        buf = channel.recv(65535)
+                        if isinstance(fp, io.TextIOBase):
+                            fp.write(buf.decode())
+                        else:
+                            fp.write(buf)
+                    else:
+                        time.sleep(0.1)
+                    end = time.perf_counter()
+                    if end - start > 1.0:
+                        break
+
+            else:
+                if channel.recv_ready():
+                    # fp.write(channel.recv(65535))
+                    buf = channel.recv(65535)
+                    if isinstance(fp, io.TextIOBase):
+                        fp.write(buf.decode())
+                    else:
+                        fp.write(buf)
+                else:
+                    # Wait if no data are ready on the channel yet
+                    time.sleep(0.01)
+
+
+class SshServer:
+    def __init__(self, server_opts: ServerOpts):
+        self.opts: ServerOpts = server_opts
+        self.client = paramiko.client.SSHClient()
+        # TODO: security warning? is this relevant here?
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.client.connect(
+            self.opts.ssh_host, username=self.opts.ssh_user, password=self.opts.ssh_pwd
+        )
+        # TODO: rename to sftp_client
+        self.ftp_client: SFTPClient = self.client.open_sftp()
+
+    def send_file(self, src: Path, dst: Path, file_permission: bool):
+        # TODO: put() has a confirm parameter? use it?
+        self.ftp_client.put(str(src), str(dst))
+        if file_permission:
+            # try to copy file permission
+            self.ftp_client.chmod(str(dst), Path(src).stat().st_mode)
+
+    def mkdir(self, folder: Path, exist_ok: bool = False):
+        # TODO: document behavior if folder already exists? parents?
+        print("Trying to create folder", folder)
+        if exist_ok:
+            # TODO: use exception provided by mkdir instead of doing this
+            #       EAFP: Easier to Ask Forgiveness than Permission
+            try:
+                with self.ftp_client.open(str(folder), "r"):
+                    pass
+            except FileNotFoundError:
+                self.ftp_client.mkdir(str(folder))
+        else:
+            self.ftp_client.mkdir(str(folder))
+
+    def mkdtemp(self, prefix: Optional[str]):
+        now = datetime.datetime.now()
+        suffix = now.strftime("%Y%m%d_%H%M%S_%f")
+        tmp_folder = prefix or "tmp_py_mf_"
+        tmp_folder = Path("/tmp") / (tmp_folder + suffix)
+        # TODO: if it fails, can wait a bit randomly and retry?
+        print("Try to create remotly", tmp_folder)
+        self.mkdir(str(tmp_folder))
+        return tmp_folder
+
+    def open(self, path: str, mode: str) -> SFTPFile:
+        return self.ftp_client.open(path, mode)
+
+    def run(self, cmd: List[str], cwd: Optional[str] = None):
+        cmd = cmd[0]
+        if cwd:
+            # Emulate cwd
+            cmd = f"cd {cwd} && " + cmd
+        transport = self.client.get_transport()
+        proc = ParamikoRemotePopen(transport.open_session())
+        print("[SshServer] Run", cmd)
+        return proc.run(cmd, stdout=sys.stdout)
+        # return proc
+
+
+class Server:
+    def __init__(self, server_opts: ServerOpts):
+        self.server_opts = server_opts
+
+        if server_opts.local:
+            self.server = None
+        else:
+            self.server = SshServer(server_opts)
+
+    def send_file(self, src: Path, dst: Path, file_permission: bool = True):
+        if self.server_opts.local:
+            shutil.copy(src, dst)
+        else:
+            self.server.send_file(src, dst, file_permission)
+
+    def run(self, cmd: List[str], cwd: Optional[str] = None):
+        if self.server_opts.local:
+            return subprocess.Popen(cmd, cwd=cwd, shell=True)
+            # TODO: git clone with shell=True fails but why?
+            # return subprocess.Popen(cmd, cwd=cwd)
+        else:
+            return self.server.run(cmd, cwd)
+
+    def mkdtemp(self, prefix: Optional[str]):
+        # TODO: keep track of this & add a cleanup functions
+        if self.server_opts.local:
+            return tempfile.mkdtemp(prefix=prefix)
+        else:
+            return self.server.mkdtemp(prefix=prefix)
+
+    def mkdir(self, folder: Path):
+        if self.server_opts.local:
+            folder.mkdir(parents=True, exist_ok=True)
+        else:
+            self.server.mkdir(folder, exist_ok=True)
+
+    def open(self, path: str, mode: str):
+        if self.server_opts.local:
+            return open(path, mode=mode)
+        else:
+            return self.server.open(str(path), mode)
+
+    def stop(self, process):
+        if self.server_opts.local:
+            process.terminate()

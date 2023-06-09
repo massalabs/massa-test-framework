@@ -1,0 +1,19 @@
+# Python
+__pycache__
+
+# Python virtualenv
+venv
+venv_dev
+
+# Python packaging
+dist
+massa_test_framework.egg-info
+
+# Ruff
+.ruff_cache
+
+# Mypy
+.mypy_cache
+
+# IDE
+.idea
