@@ -1,0 +1,17 @@
+name: CI
+on: [pull_request]
+
+jobs:
+  build:
+    name: Python checks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.11
+    - run: pip install --upgrade pip
+    - run: pip install -r requirements_dev.txt
+    - run: black --diff --check massa_test_framework/
+    - run: ruff check massa_test_framework/
+    - run: mypy massa_test_framework/
