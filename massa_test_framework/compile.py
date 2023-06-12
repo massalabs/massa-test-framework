@@ -11,9 +11,6 @@ class CompileOpts:
     git_url: Optional[str] = "https://github.com/massalabs/massa.git"
     # Build (Compile) option (e.g. for cargo build)
     build_opts: List[str] = field(default_factory=list)
-    # opts: Dict[str, str] = field(default_factory=dict)
-    # remote: bool = False
-    # remote_ops: Dict[str, str] = field(default_factory=dict)
     already_compiled: Optional[Path] = None
 
 
