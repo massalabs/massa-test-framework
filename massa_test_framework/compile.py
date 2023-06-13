@@ -1,20 +1,36 @@
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from massa_test_framework.server import Server
+
+
+class BuildKind(StrEnum):
+    Debug = "debug"
+    Release = "release"
 
 
 @dataclass
 class CompileOpts:
     git_url: Optional[str] = "https://github.com/massalabs/massa.git"
+    # Clone (git clone) option
+    clone_opts: List[str] = field(default_factory=list)
     # Build (Compile) option (e.g. for cargo build)
     build_opts: List[str] = field(default_factory=list)
-    # opts: Dict[str, str] = field(default_factory=dict)
-    # remote: bool = False
-    # remote_ops: Dict[str, str] = field(default_factory=dict)
+    cargo_bin: str = "cargo"
     already_compiled: Optional[Path] = None
+    config_files: Dict[str, Path] = field(default_factory=lambda: {
+        "config.toml": Path("massa-node/base_config/config.toml"),
+        "initial_ledger.json": Path("massa-node/base_config/initial_ledger.json"),
+        "initial_peers.json": Path("massa-node/base_config/initial_peers.json"),
+        "initial_rolls.json": Path("massa-node/base_config/initial_rolls.json"),
+        "initial_vesting.json": Path("massa-node/base_config/initial_vesting.json"),
+        "node_privkey.key": Path("massa-node/config/node_privkey.key"),
+        "abi_gas_costs.json": Path("massa-node/base_config/gas_costs/abi_gas_costs.json"),
+        "wasm_gas_costs.json": Path("massa-node/base_config/gas_costs/wasm_gas_costs.json"),
+    })
 
 
 class CompileUnit:
@@ -23,6 +39,7 @@ class CompileUnit:
         self.compile_opts = compile_opts
 
         self._repo = ""
+        self._patches: Dict[str, str | Path] = {}
 
     def compile(self):
         tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
@@ -34,7 +51,9 @@ class CompileUnit:
         # print([type(i) for i in cmd])
         # TODO: raise if cmd fails, check return code?
         # Note: need to join cmd otherwise it will fail
+
         with self.server.run([" ".join(cmd)]) as proc:
+            proc.wait()
             print("Done.")
 
         print("return code", proc.returncode)
@@ -44,10 +63,11 @@ class CompileUnit:
                 f"Could not clone {self.compile_opts.git_url} to {tmp_folder}, return code: {proc.returncode}"
             )
 
-        build_cmd = ["cargo", "build"]
+        build_cmd = [self.compile_opts.cargo_bin, "build"]
         print(self.compile_opts.build_opts)
         build_cmd.extend(self.compile_opts.build_opts)
-        with self.server.run([" ".join(build_cmd)], cwd=tmp_folder) as proc:
+        with self.server.run([" ".join(build_cmd)], cwd=str(tmp_folder)) as proc:
+            proc.wait()
             print("Done.")
 
         print("return code", proc.returncode)
@@ -57,9 +77,28 @@ class CompileUnit:
 
         self._repo = Path(tmp_folder)
 
+    # def add_patch(self, patch_name: str, patch: str | Path):
+    #     self._patches[patch_name] = patch
+
+    @property
     def repo(self):
-        # TODO: read property
         if self.compile_opts.already_compiled:
             return self.compile_opts.already_compiled
         else:
             return self._repo
+
+    @property
+    def build_kind(self) -> BuildKind:
+        if "--release" in self.compile_opts.build_opts:
+            return BuildKind.Release
+        else:
+            return BuildKind.Debug
+
+    @property
+    def massa_node(self) -> Path:
+        """Relative path (relative to compilation folder) to massa node binary"""
+        return Path(f"target/{self.build_kind}/massa-node")
+
+    @property
+    def config_files(self) -> Dict[str, Path]:
+        return self.compile_opts.config_files

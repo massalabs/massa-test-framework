@@ -16,10 +16,13 @@ import paramiko
 from paramiko.sftp_client import SFTPFile, SFTPClient
 from paramiko.channel import Channel
 
+from massa_test_framework.remote import RemotePath
+
 
 @dataclass
 class ServerOpts:
     local: bool = False
+    name: str = ""
     ssh_host: str = ""
     ssh_user: str = ""
     ssh_pwd: str = ""
@@ -55,15 +58,18 @@ class ParamikoRemotePopen:
         # session.settimeout(0.1)
 
         try:
-            print("yield None")
-            yield None
+            yield self
         finally:
-            print("Exiting the context manager")
+            print("[ParamikoRemotePopen - run] Exiting the context manager")
             self.channel.eof_received = True
             # Wait for thread to exit
+
+            print("Joining the background thread")
             bgthd.join(1)
 
             self.returncode = self.channel.exit_status
+            print("[ParamikoRemotePopen] self.returnode", self.returncode)
+            print("[ParamikoRemotePopen] self", self)
 
     @classmethod
     def output_fp(cls, channel: Channel, fp: BinaryIO | TextIO = sys.stdout):
@@ -71,9 +77,13 @@ class ParamikoRemotePopen:
         done = False
         while not done:
             if channel.exit_status_ready() or channel.eof_received:
+
+                print("has exit status ready", channel.exit_status_ready())
+                print("has eof received", channel.eof_received)
+
                 done = True
 
-                # Wait for ~ 1s (time to read stdout/stderr)
+                # On exit, wait for ~ 1s (time to read reamining in stdout/stderr)
                 start = time.perf_counter()
                 while True:
                     if channel.recv_ready():
@@ -91,6 +101,8 @@ class ParamikoRemotePopen:
                         break
 
             else:
+
+                # print("BgThread recv...")
                 if channel.recv_ready():
                     # fp.write(channel.recv(65535))
                     buf = channel.recv(65535)
@@ -101,6 +113,15 @@ class ParamikoRemotePopen:
                 else:
                     # Wait if no data are ready on the channel yet
                     time.sleep(0.01)
+
+        # print("end of bgthread")
+
+    def wait(self):
+
+        done = False
+        while not done:
+            if self.channel.exit_status_ready() or self.channel.eof_received:
+                done = True
 
 
 class SshServer:
@@ -122,7 +143,7 @@ class SshServer:
             # try to copy file permission
             self.ftp_client.chmod(str(dst), Path(src).stat().st_mode)
 
-    def mkdir(self, folder: Path, exist_ok: bool = False):
+    def mkdir(self, folder: Path, exist_ok: bool = False, parents: bool = False):
         # TODO: document behavior if folder already exists? parents?
         print("Trying to create folder", folder)
         if exist_ok:
@@ -170,6 +191,8 @@ class Server:
         else:
             self.server = SshServer(server_opts)
 
+        self._cleanup = []
+
     def send_file(self, src: Path, dst: Path, file_permission: bool = True):
         if self.server_opts.local:
             shutil.copy(src, dst)
@@ -184,12 +207,14 @@ class Server:
         else:
             return self.server.run(cmd, cwd)
 
-    def mkdtemp(self, prefix: Optional[str]):
-        # TODO: keep track of this & add a cleanup functions
+    def mkdtemp(self, prefix: Optional[str]) -> Path | RemotePath:
         if self.server_opts.local:
-            return tempfile.mkdtemp(prefix=prefix)
+            p = Path(tempfile.mkdtemp(prefix=prefix))
         else:
-            return self.server.mkdtemp(prefix=prefix)
+            p = RemotePath(self.server.mkdtemp(prefix=prefix), server=self)
+
+        self._cleanup.append(p)
+        return p
 
     def mkdir(self, folder: Path):
         if self.server_opts.local:

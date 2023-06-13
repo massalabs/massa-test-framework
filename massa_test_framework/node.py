@@ -3,12 +3,13 @@ from pathlib import Path
 import json
 import time
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # internal
 from massa_test_framework import massa_jsonrpc_api
 from massa_test_framework.massa_jsonrpc_api import AddressInfo
 from massa_test_framework.compile import CompileUnit, CompileOpts
+from massa_test_framework.remote import copy_file, RemotePath
 from massa_test_framework.server import Server
 
 # third party
@@ -20,23 +21,30 @@ class Node:
     def __init__(self, server: Server, compile_unit: CompileUnit):
         self.server = server
         self.compile_unit = compile_unit
-        self.to_install = [
-            ("target/release/massa-node", ""),
-            ("massa-node/base_config/config.toml", "base_config"),
-            ("massa-node/base_config/initial_ledger.json", "base_config"),
-            ("massa-node/base_config/initial_peers.json", "base_config"),
-            ("massa-node/base_config/initial_rolls.json", "base_config"),
-            ("massa-node/base_config/initial_vesting.json", "base_config"),
-            (
-                "massa-node/base_config/gas_costs/abi_gas_costs.json",
-                "base_config/gas_costs",
-            ),
-            (
-                "massa-node/base_config/gas_costs/wasm_gas_costs.json",
-                "base_config/gas_costs",
-            ),
-        ]
-        self.to_create = ["config"]
+
+        #self.to_install = [
+        #    ("target/release/massa-node", ""),
+        #    ("massa-node/base_config/config.toml", "base_config"),
+        #    ("massa-node/base_config/initial_ledger.json", "base_config"),
+        #    ("massa-node/base_config/initial_peers.json", "base_config"),
+        #    ("massa-node/base_config/initial_rolls.json", "base_config"),
+        #    ("massa-node/base_config/initial_vesting.json", "base_config"),
+        #    (
+        #        "massa-node/base_config/gas_costs/abi_gas_costs.json",
+        #        "base_config/gas_costs",
+        #    ),
+        #    (
+        #        "massa-node/base_config/gas_costs/wasm_gas_costs.json",
+        #        "base_config/gas_costs",
+        #    ),
+        #]
+
+        self._to_install: Dict[str, Path] = {
+            "massa_node": self.compile_unit.massa_node,
+        }
+        self._to_install.update(self.compile_unit.config_files)
+        self._to_create = ["massa-node", "massa-node/config", "massa-client"]
+
         self.node_start_cmd = ["./massa-node", "-p", "1234"]
         self.node_stop_cmd = ""
 
@@ -58,46 +66,79 @@ class Node:
 
         # setup node
         self.install_folder = self._install()
+        self.config_files = {k: self.install_folder / p for k, p in self.compile_unit.config_files.items()}
+
+        print(self.config_files)
+
         # TODO: can we have a dict: to_install and query this dict?
-        self.config_path = Path(self.install_folder, "base_config/config.toml")
-        self.initial_ledger_path = Path(
-            self.install_folder, "base_config/initial_ledger.json"
-        )
-        self.initial_peers_path = Path(
-            self.install_folder, "base_config/initial_peers.json"
-        )
-        self.initial_rolls_path = Path(
-            self.install_folder, "base_config/initial_rolls.json"
-        )
+        # self.config_path = Path(self.install_folder, "base_config/config.toml")
+        # self.initial_ledger_path = Path(
+        #     self.install_folder, "base_config/initial_ledger.json"
+        # )
+        # self.initial_peers_path = Path(
+        #     self.install_folder, "base_config/initial_peers.json"
+        # )
+        # self.initial_rolls_path = Path(
+        #     self.install_folder, "base_config/initial_rolls.json"
+        # )
+        # self.node_privkey_path = Path(
+        #     self.install_folder, "config/node_privkey.key"
+        # )
 
         #
 
-    def _install(self):
-        tmp_folder = self.server.mkdtemp(prefix="massa_")
-        print("Installing to tmp folder", tmp_folder)
-        repo = self.compile_unit.repo()
-        print("repo", repo)
+    # def _install(self):
+    #     tmp_folder = self.server.mkdtemp(prefix="massa_")
+    #     print("Installing to tmp folder", tmp_folder)
+    #     repo = self.compile_unit.repo()
+    #     print("repo", repo)
 
-        for to_create in self.to_create:
+    #     for to_create in self.to_create:
+    #         f = Path(tmp_folder) / to_create
+    #         print(f"Creating {f}")
+    #         self.server.mkdir(Path(f))
+
+    #     print("to_install...")
+
+    #     for to_install, dst_rel_folder in self.to_install:
+    #         # TODO / FIXME
+    #         # p = self.node.path_join(repo, to_install)
+    #         p = repo / to_install
+    #         dst = Path(tmp_folder)
+    #         if dst_rel_folder:
+    #             dst /= dst_rel_folder
+
+    #         self.server.mkdir(dst)
+
+    #         dst /= Path(to_install).name
+    #         print(f"Copying {p} -> {dst} ...")
+    #         self.server.send_file(p, dst)
+
+    #     return tmp_folder
+
+    def _install(self) -> Path | RemotePath:
+        tmp_folder = self.server.mkdtemp(prefix="massa_")
+        repo = self.compile_unit.repo
+
+        for to_create in self._to_create:
             f = Path(tmp_folder) / to_create
             print(f"Creating {f}")
             self.server.mkdir(Path(f))
 
-        print("to_install...")
+        for filename, to_install in self._to_install.items():
+            src = repo / to_install
 
-        for to_install, dst_rel_folder in self.to_install:
-            # TODO / FIXME
-            # p = self.node.path_join(repo, to_install)
-            p = repo / to_install
-            dst = Path(tmp_folder)
-            if dst_rel_folder:
-                dst /= dst_rel_folder
-
-            self.server.mkdir(dst)
-
-            dst /= Path(to_install).name
-            print(f"Copying {p} -> {dst} ...")
-            self.server.send_file(p, dst)
+            if filename == "massa_node":
+                dst = tmp_folder / "massa-node" / to_install.name
+            elif filename == "node_privkey.key":
+                continue
+            else:
+                dst = tmp_folder / to_install
+            print("Creating folder", dst.parent)
+            self.server.mkdir(dst.parent)
+            print("is dst a remote path?", isinstance(dst, RemotePath))
+            print("Copying {} -> {}")
+            copy_file(src, dst)
 
         return tmp_folder
 
@@ -107,10 +148,12 @@ class Node:
         return node
 
     @staticmethod
-    def from_dev(server: Server, repo: Path):
+    def from_dev(server: Server, repo: Path, build_opts: Optional[List[str]] = None):
         # TODO: add options to recompile?
         compile_opts = CompileOpts()
         compile_opts.already_compiled = repo
+        if build_opts:
+            compile_opts.build_opts = build_opts
         cu = CompileUnit(server, compile_opts)
         node = Node(server, cu)
         return node
@@ -136,8 +179,12 @@ class Node:
 
     @contextmanager
     def start(self):
+        """Start a node
+
+        Start a Massa node (as a context manager)
+        """
         process = self.server.run(
-            [" ".join(self.node_start_cmd)], cwd=self.install_folder
+            [" ".join(self.node_start_cmd)], cwd=self.install_folder / "massa-node"
         )
         with process as p:
             try:
@@ -150,24 +197,38 @@ class Node:
 
                 print(traceback.format_exc())
                 self.stop(p)
+                # Re Raise exception so test will be marked as failed
+                raise
             else:
                 # Note: normal end
                 self.stop(p)
 
     def stop(self, process):
+
+        """ Stop a node
+
+        Stop a Massa node but note that it is called automatically when the context manager of start() exits
+        """
+
         # try to stop using the API
         try:
             self.priv_api.stop_node()
         except (ConnectionRefusedError, requests.exceptions.ConnectionError) as e:
             # node is stuck or already stopped - try to terminate the process
             self.server.stop(process)
+        # else:
+        #     # Note: sometimes the node take ages to end so we force the stop here too
+        #     #       happens for subprocess.Popen
+        #     self.server.stop(process)
 
     # Config
 
     @contextmanager
     def edit_config(self):
-        print("Editing config", self.config_path)
-        fp = self.server.open(self.config_path, "r+")
+        """ Edit config.toml (as a context manager). Must be called before start()
+        """
+        # print("Editing config", self.config_path)
+        fp = self.server.open(self.config_files["config.toml"], "r+")
         cfg = tomlkit.load(fp)
         try:
             yield cfg
@@ -182,9 +243,14 @@ class Node:
         # print("end of edit_config")
 
     @contextmanager
-    def edit_json(self, json_filepath: Path):
-        fp = self.server.open(json_filepath, "r+")
-        cfg = json.load(fp)
+    def edit_json(self, json_filepath: Path, mode: str = "r+", default_json=None):
+        fp = self.server.open(json_filepath, mode)
+        try:
+            cfg = json.load(fp)
+        except json.decoder.JSONDecodeError:
+            # Json file is empty (json file just created?), return default value
+            cfg = default_json
+
         try:
             yield cfg
         finally:
@@ -195,23 +261,16 @@ class Node:
 
     # @contextmanager
     def edit_ledger(self):
-        # TODO: generic func over all json files?
-        # fp = self.server.open(self.initial_ledger_path, "r+")
-        # cfg = json.load(fp)
-        # try:
-        #     yield cfg
-        # finally:
-        #     fp.seek(0)
-        #     fp.truncate(0)
-        #     json.dump(cfg, fp)
-        #     fp.close()
-        return self.edit_json(self.initial_ledger_path)
+        return self.edit_json(self.config_files["initial_ledger.json"])
 
     def edit_initial_peers(self):
-        return self.edit_json(self.initial_peers_path)
+        return self.edit_json(self.config_files["initial_peers.json"])
 
     def edit_initial_rolls(self):
-        return self.edit_json(self.initial_rolls_path)
+        return self.edit_json(self.config_files["initial_rolls.json"])
+
+    def edit_node_privkey(self):
+        return self.edit_json(self.config_files["node_privkey_path"], "w+", {"public_key": "", "secret_key": ""})
 
     # API
 

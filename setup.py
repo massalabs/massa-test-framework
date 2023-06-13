@@ -6,7 +6,6 @@ LONG_DESCRIPTION = 'A framework for Massa core dev to develop functional tests'
 
 # Setting up
 setup(
-    # the name must match the folder name 'verysimplemodule'
     name="massa_test_framework",
     version=VERSION,
     author="sd",
@@ -20,7 +19,7 @@ setup(
         "tomlkit==0.11",
         "base58==2.1",
         "blake3==0.3",
-        "varint==1.0",
+        "varint==1.0.2",
         "ed25519==1.5",
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
