@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 import json
@@ -5,8 +6,14 @@ import time
 
 from typing import List, Dict, Optional
 
+import betterproto
+# import grpc
+from grpclib.client import Channel
+
 # internal
 from massa_test_framework import massa_jsonrpc_api
+from massa_test_framework.massa_grpc.massa.api.v1 import GetVersionRequest, MassaServiceStub, GetVersionResponse, \
+    GetMipStatusRequest, GetMipStatusResponse
 from massa_test_framework.massa_jsonrpc_api import AddressInfo
 from massa_test_framework.compile import CompileUnit, CompileOpts
 from massa_test_framework.remote import copy_file, RemotePath
@@ -54,6 +61,8 @@ class Node:
             self.priv_api = massa_jsonrpc_api.Api("http://127.0.0.1:33034")
             self.pub_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33035")
             self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
+            # self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
+            self.grpc_url = "127.0.0.1:33037"
         else:
             self.pub_api = massa_jsonrpc_api.Api(
                 "http://{}:33035".format(self.server.server_opts.ssh_host)
@@ -61,6 +70,7 @@ class Node:
             self.priv_api = massa_jsonrpc_api.Api(
                 "http://{}:33034".format(self.server.server_opts.ssh_host)
             )
+            self.grpc_url = "{}:33037".format(self.server.server_opts.ssh_host)
 
         # TODO: grpc api
 
@@ -323,7 +333,37 @@ class Node:
         return res["result"]
 
     # API GRPC
-    # TODO
+
+    async def _grpc_call(self, host: str, port: int, function_name: str, request: betterproto.Message) -> betterproto.Message:
+        # Note: asyncio.run will create a new event loop - channel must be created in the event loop
+        #       that's why we need to have everything in this 'generic' function
+        channel = Channel(host=host, port=port)
+        service = MassaServiceStub(channel)
+        f = getattr(service, function_name)
+        result = await f(request)
+        # Avoid warning message
+        channel.close()
+        return result
+
+    def get_version(self) -> str:
+        request = GetVersionRequest(id="0")
+
+        # async def get_version_(host, port, request):
+        #     channel = Channel(host=host, port=port)
+        #     service = MassaServiceStub(channel)
+        #     result = await service.get_version(request)
+        #     channel.close()
+        #     return result
+
+        get_version_response: GetVersionResponse = asyncio.run(self._grpc_call("127.0.0.1", 33037, "get_version", request))
+        return get_version_response.version
+
+    def get_mip_status(self):
+
+        request = GetMipStatusRequest(id="0")
+        print(request, type(request))
+        get_mip_status_response: GetMipStatusResponse = asyncio.run(self._grpc_call("127.0.0.1", 33037, "get_mip_status", request))
+        return get_mip_status_response
 
     #
     def wait_ready(self, timeout=20):
