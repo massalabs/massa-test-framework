@@ -6,6 +6,7 @@ from typing import Optional, List, Dict
 
 from massa_test_framework.server import Server
 
+import patch_ng
 
 class BuildKind(StrEnum):
     Debug = "debug"
@@ -45,13 +46,12 @@ class CompileUnit:
         tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
         # print(self.compile_opts)
         # print(type(self.compile_opts))
-        cmd = ["git", "clone", str(self.compile_opts.git_url), str(tmp_folder)]
-        # cmd = ["git", "clone", "/home/sydh/dev/massa6", "/tmp/cu_12345"]
+        cmd = ["git", "clone"]
+        cmd.extend(self.compile_opts.clone_opts)
+        cmd.extend([str(self.compile_opts.git_url), str(tmp_folder)])
         print(f"Cloning repo, using cmd ${cmd=}...")
-        # print([type(i) for i in cmd])
-        # TODO: raise if cmd fails, check return code?
-        # Note: need to join cmd otherwise it will fail
 
+        # Note: need to join cmd otherwise it will fail
         with self.server.run([" ".join(cmd)]) as proc:
             proc.wait()
             print("Done.")
@@ -62,6 +62,17 @@ class CompileUnit:
             raise RuntimeError(
                 f"Could not clone {self.compile_opts.git_url} to {tmp_folder}, return code: {proc.returncode}"
             )
+
+        # TODO: cleanup if apply fails?
+        for patch_name, patch in self._patches.items():
+            print(f"Applying patch {patch_name}")
+            if isinstance(patch, Path):
+                patchset = patch_ng.fromfile(patch)
+            else:
+                patchset = patch_ng.fromstring(patch)
+
+            patchset.apply(root=tmp_folder)
+            print("Done.")
 
         build_cmd = [self.compile_opts.cargo_bin, "build"]
         print(self.compile_opts.build_opts)
@@ -77,8 +88,8 @@ class CompileUnit:
 
         self._repo = Path(tmp_folder)
 
-    # def add_patch(self, patch_name: str, patch: str | Path):
-    #     self._patches[patch_name] = patch
+    def add_patch(self, patch_name: str, patch: bytes | Path):
+        self._patches[patch_name] = patch
 
     @property
     def repo(self):

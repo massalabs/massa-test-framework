@@ -178,13 +178,13 @@ class Node:
             self.stop(process)
 
     @contextmanager
-    def start(self):
+    def start(self, env: Optional[Dict[str, str]] = None):
         """Start a node
 
         Start a Massa node (as a context manager)
         """
         process = self.server.run(
-            [" ".join(self.node_start_cmd)], cwd=self.install_folder / "massa-node"
+            [" ".join(self.node_start_cmd)], cwd=self.install_folder / "massa-node", env=env
         )
         with process as p:
             try:

@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 
-from typing import List, Optional, BinaryIO, TextIO
+from typing import List, Optional, BinaryIO, TextIO, Dict
 
 import paramiko
 from paramiko.sftp_client import SFTPFile, SFTPClient
@@ -38,7 +38,7 @@ class ParamikoRemotePopen:
         self.returncode = -1
 
     @contextmanager
-    def run(self, cmd, stdout: BinaryIO | TextIO):
+    def run(self, cmd, stdout: BinaryIO | TextIO, env: Optional[Dict[str, str]]):
         # Create a background thread to output result to a file
         bgthd = Thread(
             target=ParamikoRemotePopen.output_fp,
@@ -51,6 +51,10 @@ class ParamikoRemotePopen:
 
         # self.channel.setblocking(0)
         # self.channel.settimeout(0.1)
+
+        if env:
+            for env_var, env_value in env.items():
+                self.channel.set_environment_variable(env_var, env_value)
 
         print("Exec command in channel")
         self.channel.exec_command(cmd)
@@ -170,7 +174,8 @@ class SshServer:
     def open(self, path: str, mode: str) -> SFTPFile:
         return self.ftp_client.open(path, mode)
 
-    def run(self, cmd: List[str], cwd: Optional[str] = None):
+    def run(self, cmd: List[str], cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None):
+
         cmd = cmd[0]
         if cwd:
             # Emulate cwd
@@ -178,7 +183,7 @@ class SshServer:
         transport = self.client.get_transport()
         proc = ParamikoRemotePopen(transport.open_session())
         print("[SshServer] Run", cmd)
-        return proc.run(cmd, stdout=sys.stdout)
+        return proc.run(cmd, stdout=sys.stdout, env=env)
         # return proc
 
 
@@ -199,9 +204,9 @@ class Server:
         else:
             self.server.send_file(src, dst, file_permission)
 
-    def run(self, cmd: List[str], cwd: Optional[str] = None):
+    def run(self, cmd: List[str], cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None):
         if self.server_opts.local:
-            return subprocess.Popen(cmd, cwd=cwd, shell=True)
+            return subprocess.Popen(cmd, cwd=cwd, shell=True, env=env)
             # TODO: git clone with shell=True fails but why?
             # return subprocess.Popen(cmd, cwd=cwd)
         else:

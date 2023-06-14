@@ -21,6 +21,7 @@ setup(
         "blake3==0.3",
         "varint==1.0.2",
         "ed25519==1.5",
+        "patch-ng==1.17.4"
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=['python'],
