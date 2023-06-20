@@ -32,6 +32,20 @@ import tomlkit
 
 class Node:
     def __init__(self, server: Server, compile_unit: CompileUnit):
+        """Init a Node (e.g. a Massa Node) object
+
+        The new node can be started, stopeed, edited (various config files)
+
+        Args:
+            server: the server on which the node will run on
+            compile_unit: the compilation of the massa repo
+
+        Raises:
+            RuntimeError: if api ports && grpc port cannot be read from config
+
+        """
+
+
         self.server = server
         self.compile_unit = compile_unit
 
@@ -237,7 +251,6 @@ class Node:
                 #       otherwise it will wait forever
                 #       so first print traceback then stop the process
                 import traceback
-
                 print(traceback.format_exc())
                 self.stop(p)
                 # Re Raise exception so test will be marked as failed
@@ -313,9 +326,21 @@ class Node:
 
     # @contextmanager
     def edit_ledger(self):
+        """Edit initial ledger
+        """
+
         return self.edit_json(self.config_files["initial_ledger.json"])
 
     def edit_initial_peers(self):
+        """Edit initial peers
+
+        Example:
+            >>> from massa_test_framework import Server, ServerOpts, Node
+            >>> server = Server(ServerOpts(local=True))
+            >>> node = Node(server)
+            >>> with node.edit_initial_peers() as peers:
+            >>>    peers.clear()
+        """
         return self.edit_json(self.config_files["initial_peers.json"])
 
     def edit_initial_rolls(self):
@@ -341,12 +366,18 @@ class Node:
 
         This a helper function calling (jsonrpc api) get_status() and extracting only the last slot period
 
-        :return: the period as integer
+        Returns:
+             the period as integer
         """
         res = self.get_status()
         return res["result"]["last_slot"]["period"]
 
     def get_addresses(self, addresses: List[str]) -> Dict[str, AddressInfo]:
+        """Get addresses
+
+        Returns:
+            A dict with key -> Address string, value -> [AddressInfo](api.AddressInfo)
+        """
         res_ = self.pub_api2.get_addresses(addresses)
         final_res = {}
         for res in res_["result"]:
@@ -367,8 +398,11 @@ class Node:
 
     def send_operations(self, operations: List[bytes]) -> List[str]:
         """Send operations using jsonrpc api
-        :param operations: a list of serialized operations
-        :return: a list of operation id
+
+        Args:
+            operations: a list of serialized operations
+        Returns:
+            a list of operation id
         """
         res = self.pub_api2.send_operations(operations)
         return res["result"]
@@ -403,11 +437,13 @@ class Node:
         return get_mip_status_response
 
     #
-    def wait_ready(self, timeout=20):
+    def wait_ready(self, timeout=20) -> None:
         """Wait for node to be ready
 
         Blocking wait for node to be ready
-        :param timeout: max number of seconds to wait for
+
+        Args:
+            timeout: max number of seconds to wait for
         """
 
         # TODO: can take into account the GENESIS time? env var?

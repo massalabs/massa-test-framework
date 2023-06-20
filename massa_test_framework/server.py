@@ -38,7 +38,7 @@ class ParamikoRemotePopen:
         self.returncode = -1
 
     @contextmanager
-    def run(self, cmd, stdout: BinaryIO | TextIO, env: Optional[Dict[str, str]]):
+    def run(self, cmd, stdout: BinaryIO | TextIO):
         # Create a background thread to output result to a file
         bgthd = Thread(
             target=ParamikoRemotePopen.output_fp,
@@ -52,9 +52,10 @@ class ParamikoRemotePopen:
         # self.channel.setblocking(0)
         # self.channel.settimeout(0.1)
 
-        if env:
-            for env_var, env_value in env.items():
-                self.channel.set_environment_variable(env_var, env_value)
+        # if env:
+        #     for env_var, env_value in env.items():
+        #         print(f"Setting env: {env_var} - env_value: {env_value}")
+        #         self.channel.set_environment_variable(env_var, env_value)
 
         print("Exec command in channel")
         self.channel.exec_command(cmd)
@@ -178,13 +179,21 @@ class SshServer:
         env: Optional[Dict[str, str]] = None,
     ):
         cmd = cmd[0]
+
+        if env:
+            # Note: Channel.set_environment_variable is most of the time restricted so not used here
+            cmd_prefix = []
+            for env_var, env_value in env.items():
+                cmd_prefix.append(f"{env_var}='{env_value}'")
+            cmd = " ".join(cmd_prefix) + " " + cmd
+
         if cwd:
             # Emulate cwd
             cmd = f"cd {cwd} && " + cmd
         transport = self.client.get_transport()
         proc = ParamikoRemotePopen(transport.open_session())
-        print("[SshServer] Run", cmd)
-        return proc.run(cmd, stdout=sys.stdout, env=env)
+        print("[SshServer] Run", cmd, "- env:", env)
+        return proc.run(cmd, stdout=sys.stdout)
         # return proc
 
 
@@ -221,7 +230,7 @@ class Server:
             # return subprocess.Popen(cmd, cwd=cwd)
         else:
             # TODO: handle stdout & stderr
-            return self.server.run(cmd, cwd)
+            return self.server.run(cmd, cwd, env=env)
 
     def mkdtemp(self, prefix: Optional[str]) -> Path | RemotePath:
         if self.server_opts.local:

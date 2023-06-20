@@ -41,15 +41,23 @@ with node1.start():
 
 Formatter: [black](https://github.com/psf/black)
      
-     venv_dev/bin/black massa_test_framework
+    venv_dev/bin/black massa_test_framework
 
 Typing: [mypy](https://www.mypy-lang.org/)
      
-     venv_dev/bin/mypy massa_test_framework
+    venv_dev/bin/mypy massa_test_framework
 
 Linter: [ruff](https://github.com/astral-sh/ruff)
 
-     venv_dev/bin/ruff check massa_test_framework
+    venv_dev/bin/ruff check massa_test_framework
+
+Doc: [Sphinx]()
+
+    cd doc && make html
+
+Note:
+* Use Napoleon syntax when writing docstrings: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
+  * [Full syntax example](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google)
 
 ## Generating massa_grpc
 

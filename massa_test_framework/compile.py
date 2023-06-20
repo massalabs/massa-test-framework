@@ -46,6 +46,12 @@ class CompileOpts:
 
 class CompileUnit:
     def __init__(self, server: Server, compile_opts: CompileOpts):
+        """ Init a CompileUnit object
+
+        Notes:
+             Can be shared to multiple [Node](massa_test_framework.Node) objects \
+             (e.g. Only 1 compilation for all nodes used in a test)
+        """
         self.server = server
         self.compile_opts = compile_opts
 
@@ -53,6 +59,11 @@ class CompileUnit:
         self._patches: Dict[str, str | Path] = {}
 
     def compile(self) -> None:
+        """Clone, apply patches if any then compile
+
+        Raise:
+            RuntimeError: if git clone return non 0, cargo build return non 0, patch cannot be applied
+        """
         tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
         # print(self.compile_opts)
         # print(type(self.compile_opts))
@@ -103,6 +114,15 @@ class CompileUnit:
         self._repo = Path(tmp_folder)
 
     def add_patch(self, patch_name: str, patch: bytes | Path) -> None:
+        """ Add patch to apply after cloning
+
+        Args:
+            patch_name: a meaningful name or description
+            patch: a patch file or binary data of a patch
+
+        Notes:
+            Patch must be generated as unified patch (e.g. git diff --unified > foo.patch)
+        """
         self._patches[patch_name] = patch
 
     @property
