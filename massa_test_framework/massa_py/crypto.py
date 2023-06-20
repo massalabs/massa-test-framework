@@ -23,7 +23,7 @@ class KeyPair:
         # Decode base58
         private = base58.b58decode_check(private)
         # Decode varint
-        version = varint.decode_bytes(private)
+        # version = varint.decode_bytes(private)
         # Get rest (for the moment versions are little)
         secret_key = private[1:]
         # decode privkey

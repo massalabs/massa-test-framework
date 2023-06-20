@@ -1,7 +1,7 @@
 import json
 from functools import partial
 from typing import List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import requests
 
@@ -37,7 +37,6 @@ class JsonApi:
 
     @staticmethod
     def get_addresses(addresses: List[str]):
-        print("[JsonApi] get addresses", addresses, type(addresses))
         headers = {"Content-type": "application/json"}
         payload = json.dumps(
             {
@@ -76,21 +75,21 @@ class JsonApi:
         return headers, payload
 
 
-class Api:
-    def __init__(self, url) -> None:
-        self.url = url
-        self._api = JsonApi()
-
-    def _make_request(self, headers, payload):
-        response = requests.post(self.url, headers=headers, data=payload)
-        return response.json()
-
-    def __getattr__(self, item):
-        # Get function from json api
-        f = getattr(self._api, item)
-        headers, payload = f()
-        # Return a function (that will make the json rpc call) ready to be called
-        return partial(self._make_request, headers, payload)
+# class Api:
+#     def __init__(self, url) -> None:
+#         self.url = url
+#         self._api = JsonApi()
+#
+#     def _make_request(self, headers, payload):
+#         response = requests.post(self.url, headers=headers, data=payload)
+#         return response.json()
+#
+#     def __getattr__(self, item):
+#         # Get function from json api
+#         f = getattr(self._api, item)
+#         headers, payload = f()
+#         # Return a function (that will make the json rpc call) ready to be called
+#         return partial(self._make_request, headers, payload)
 
 
 class Api2:

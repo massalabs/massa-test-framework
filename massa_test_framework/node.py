@@ -1,19 +1,25 @@
+import sys
 import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 import json
 import time
+from urllib.parse import urlparse
 
 from typing import List, Dict, Optional
 
 import betterproto
-# import grpc
 from grpclib.client import Channel
 
 # internal
 from massa_test_framework import massa_jsonrpc_api
-from massa_test_framework.massa_grpc.massa.api.v1 import GetVersionRequest, MassaServiceStub, GetVersionResponse, \
-    GetMipStatusRequest, GetMipStatusResponse
+from massa_test_framework.massa_grpc.massa.api.v1 import (
+    GetVersionRequest,
+    MassaServiceStub,
+    GetVersionResponse,
+    GetMipStatusRequest,
+    GetMipStatusResponse,
+)
 from massa_test_framework.massa_jsonrpc_api import AddressInfo
 from massa_test_framework.compile import CompileUnit, CompileOpts
 from massa_test_framework.remote import copy_file, RemotePath
@@ -29,7 +35,7 @@ class Node:
         self.server = server
         self.compile_unit = compile_unit
 
-        #self.to_install = [
+        # self.to_install = [
         #    ("target/release/massa-node", ""),
         #    ("massa-node/base_config/config.toml", "base_config"),
         #    ("massa-node/base_config/initial_ledger.json", "base_config"),
@@ -44,7 +50,7 @@ class Node:
         #        "massa-node/base_config/gas_costs/wasm_gas_costs.json",
         #        "base_config/gas_costs",
         #    ),
-        #]
+        # ]
 
         self._to_install: Dict[str, Path] = {
             "massa_node": self.compile_unit.massa_node,
@@ -56,29 +62,49 @@ class Node:
         self.node_stop_cmd = ""
 
         # TODO: build this from config?
-        if self.server.server_opts.local:
-            self.pub_api = massa_jsonrpc_api.Api("http://127.0.0.1:33035")
-            self.priv_api = massa_jsonrpc_api.Api("http://127.0.0.1:33034")
-            self.pub_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33035")
-            self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
-            # self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
-            self.grpc_url = "127.0.0.1:33037"
-        else:
-            self.pub_api = massa_jsonrpc_api.Api(
-                "http://{}:33035".format(self.server.server_opts.ssh_host)
-            )
-            self.priv_api = massa_jsonrpc_api.Api(
-                "http://{}:33034".format(self.server.server_opts.ssh_host)
-            )
-            self.grpc_url = "{}:33037".format(self.server.server_opts.ssh_host)
-
+        # if self.server.server_opts.local:
+        #     # self.pub_api = massa_jsonrpc_api.Api("http://127.0.0.1:33035")
+        #     # self.priv_api = massa_jsonrpc_api.Api("http://127.0.0.1:33034")
+        #     self.pub_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33035")
+        #     self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
+        #     # self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
+        #     self.grpc_url = "127.0.0.1:33037"
+        # else:
+        #     self.pub_api2 = massa_jsonrpc_api.Api2(
+        #         "http://{}:33035".format(self.server.server_opts.ssh_host)
+        #     )
+        #     self.priv_api2 = massa_jsonrpc_api.Api2(
+        #         "http://{}:33034".format(self.server.server_opts.ssh_host)
+        #     )
+        #     self.grpc_url = "{}:33037".format(self.server.server_opts.ssh_host)
         # TODO: grpc api
 
         # setup node
         self.install_folder = self._install()
-        self.config_files = {k: self.install_folder / p for k, p in self.compile_unit.config_files.items()}
+        self.config_files = {
+            k: self.install_folder / p
+            for k, p in self.compile_unit.config_files.items()
+        }
 
-        print(self.config_files)
+        # print(self.config_files)
+
+        with self.server.open(self.config_files["config.toml"], "r") as fp:
+            cfg = tomlkit.load(fp)
+
+            pub_api_port = urlparse("http://" + cfg["api"]["bind_public"]).port
+            priv_api_port = urlparse("http://" + cfg["api"]["bind_private"]).port
+            grpc_port = urlparse("http://" + cfg["grpc"]["bind"]).port
+
+            if not pub_api_port or not priv_api_port or not grpc_port:
+                raise RuntimeError("Could not get api & grpc port from config")
+
+            self.pub_api2 = massa_jsonrpc_api.Api2(
+                "http://{}:{}".format(self.server.host, pub_api_port)
+            )
+            self.priv_api2 = massa_jsonrpc_api.Api2(
+                "http://{}:{}".format(self.server.host, priv_api_port)
+            )
+            self.grpc_url = "{}:{}".format(self.server.host, grpc_port)
 
         # TODO: can we have a dict: to_install and query this dict?
         # self.config_path = Path(self.install_folder, "base_config/config.toml")
@@ -132,7 +158,7 @@ class Node:
 
         for to_create in self._to_create:
             f = Path(tmp_folder) / to_create
-            print(f"Creating {f}")
+            # print(f"Creating {f}")
             self.server.mkdir(Path(f))
 
         for filename, to_install in self._to_install.items():
@@ -144,21 +170,22 @@ class Node:
                 continue
             else:
                 dst = tmp_folder / to_install
-            print("Creating folder", dst.parent)
+            # print("Creating folder", dst.parent)
             self.server.mkdir(dst.parent)
-            print("is dst a remote path?", isinstance(dst, RemotePath))
-            print("Copying {} -> {}")
+            # print("is dst a remote path?", isinstance(dst, RemotePath))
             copy_file(src, dst)
 
         return tmp_folder
 
     @staticmethod
-    def from_compile_unit(server: Server, compile_unit: CompileUnit):
+    def from_compile_unit(server: Server, compile_unit: CompileUnit) -> "Node":
         node = Node(server, compile_unit)
         return node
 
     @staticmethod
-    def from_dev(server: Server, repo: Path, build_opts: Optional[List[str]] = None):
+    def from_dev(
+        server: Server, repo: Path, build_opts: Optional[List[str]] = None
+    ) -> "Node":
         # TODO: add options to recompile?
         compile_opts = CompileOpts()
         compile_opts.already_compiled = repo
@@ -168,38 +195,44 @@ class Node:
         node = Node(server, cu)
         return node
 
-    @contextmanager
-    def start0(self):
-        process = self.server.run(
-            [" ".join(self.node_start_cmd)], cwd=self.install_folder
-        )
-        print("[node start] process type:", type(process))
-        try:
-            print("[node start] yield", process)
-            # Note: Subprocess.Popen execute as soon as it is instantiated and return an object
-            #       while ParamikoRemotePopen.run return a context manager (and it must be used, using 'with')
-            if hasattr(process, "__enter__"):
-                with process as p:
-                    yield p
-            else:
-                yield process
-        finally:
-            print("[node start] will stop", process)
-            self.stop(process)
+    # @contextmanager
+    # def start0(self):
+    #     process = self.server.run(
+    #         [" ".join(self.node_start_cmd)], cwd=self.install_folder
+    #     )
+    #     print("[node start] process type:", type(process))
+    #     try:
+    #         print("[node start] yield", process)
+    #         # Note: Subprocess.Popen execute as soon as it is instantiated and return an object
+    #         #       while ParamikoRemotePopen.run return a context mngr (and it must be used, using 'with')
+    #         if hasattr(process, "__enter__"):
+    #             with process as p:
+    #                 yield p
+    #         else:
+    #             yield process
+    #     finally:
+    #         print("[node start] will stop", process)
+    #         self.stop(process)
 
     @contextmanager
-    def start(self, env: Optional[Dict[str, str]] = None):
+    def start(
+        self, env: Optional[Dict[str, str]] = None, stdout=sys.stdout, stderr=sys.stderr
+    ):
         """Start a node
 
         Start a Massa node (as a context manager)
         """
         process = self.server.run(
-            [" ".join(self.node_start_cmd)], cwd=self.install_folder / "massa-node", env=env
+            [" ".join(self.node_start_cmd)],
+            cwd=self.install_folder / "massa-node",
+            env=env,
+            stdout=stdout,
+            stderr=stderr,
         )
         with process as p:
             try:
                 yield p
-            except Exception as e:
+            except Exception:
                 # Note: Need to catch every exception here as we need to stop subprocess.Popen
                 #       otherwise it will wait forever
                 #       so first print traceback then stop the process
@@ -214,16 +247,15 @@ class Node:
                 self.stop(p)
 
     def stop(self, process):
-
-        """ Stop a node
+        """Stop a node
 
         Stop a Massa node but note that it is called automatically when the context manager of start() exits
         """
 
         # try to stop using the API
         try:
-            self.priv_api.stop_node()
-        except (ConnectionRefusedError, requests.exceptions.ConnectionError) as e:
+            self.priv_api2.stop_node()
+        except (ConnectionRefusedError, requests.exceptions.ConnectionError):
             # node is stuck or already stopped - try to terminate the process
             self.server.stop(process)
         # else:
@@ -233,10 +265,20 @@ class Node:
 
     # Config
 
+    # @contextmanager
+    # def read_config(self):
+    #     """ Read config.toml (as a context manager).
+    #     """
+    #     fp = self.server.open(self.config_files["config.toml"], "r")
+    #     cfg = tomlkit.load(fp)
+    #     try:
+    #         yield cfg
+    #     finally:
+    #         fp.close()
+
     @contextmanager
     def edit_config(self):
-        """ Edit config.toml (as a context manager). Must be called before start()
-        """
+        """Edit config.toml (as a context manager). Must be called before start()"""
         # print("Editing config", self.config_path)
         fp = self.server.open(self.config_files["config.toml"], "r+")
         cfg = tomlkit.load(fp)
@@ -280,29 +322,31 @@ class Node:
         return self.edit_json(self.config_files["initial_rolls.json"])
 
     def edit_node_privkey(self):
-        return self.edit_json(self.config_files["node_privkey_path"], "w+", {"public_key": "", "secret_key": ""})
+        return self.edit_json(
+            self.config_files["node_privkey.key"],
+            "w+",
+            {"public_key": "", "secret_key": ""},
+        )
+
+    def edit_bootstrap_whitelist(self):
+        return self.edit_json(self.config_files["bootstrap_whitelist.json"])
 
     # API
 
     def get_status(self):
-        return self.pub_api.get_status()
+        return self.pub_api2.get_status()
 
-    def get_last_period(self):
+    def get_last_period(self) -> int:
         """Get last slot period for the node
 
         This a helper function calling (jsonrpc api) get_status() and extracting only the last slot period
 
-        :return: the period as XXX
+        :return: the period as integer
         """
         res = self.get_status()
-        # Return period as int / str? TODO: typing
         return res["result"]["last_slot"]["period"]
 
     def get_addresses(self, addresses: List[str]) -> Dict[str, AddressInfo]:
-        # TODO: design a better jsonrpc API
-        # headers, payload = self.pub_api._api.get_addresses(addresses)
-        # res_ = self.pub_api._make_request(headers, payload)
-
         res_ = self.pub_api2.get_addresses(addresses)
         final_res = {}
         for res in res_["result"]:
@@ -317,9 +361,8 @@ class Node:
 
         return final_res
 
-    def add_staking_secret_keys(self, secret_keys: List[str]):
-        headers, payload = self.priv_api._api.add_staking_secret_keys(secret_keys)
-        res = self.priv_api._make_request(headers, payload)
+    def add_staking_secret_keys(self, secret_keys: List[str]) -> None:
+        res = self.priv_api2.add_staking_secret_keys(secret_keys)
         return res
 
     def send_operations(self, operations: List[bytes]) -> List[str]:
@@ -327,15 +370,15 @@ class Node:
         :param operations: a list of serialized operations
         :return: a list of operation id
         """
-        headers, payload = self.pub_api._api.send_operations(operations)
-        res = self.pub_api._make_request(headers, payload)
-        print("res", res)
+        res = self.pub_api2.send_operations(operations)
         return res["result"]
 
     # API GRPC
 
-    async def _grpc_call(self, host: str, port: int, function_name: str, request: betterproto.Message) -> betterproto.Message:
-        # Note: asyncio.run will create a new event loop - channel must be created in the event loop
+    async def _grpc_call(
+        self, host: str, port: int, function_name: str, request: betterproto.Message
+    ) -> betterproto.Message:
+        # Note: asyncio.run will create a new event loop - channel must be created in this event loop
         #       that's why we need to have everything in this 'generic' function
         channel = Channel(host=host, port=port)
         service = MassaServiceStub(channel)
@@ -347,22 +390,16 @@ class Node:
 
     def get_version(self) -> str:
         request = GetVersionRequest(id="0")
-
-        # async def get_version_(host, port, request):
-        #     channel = Channel(host=host, port=port)
-        #     service = MassaServiceStub(channel)
-        #     result = await service.get_version(request)
-        #     channel.close()
-        #     return result
-
-        get_version_response: GetVersionResponse = asyncio.run(self._grpc_call("127.0.0.1", 33037, "get_version", request))
+        get_version_response: GetVersionResponse = asyncio.run(
+            self._grpc_call("127.0.0.1", 33037, "get_version", request)
+        )
         return get_version_response.version
 
-    def get_mip_status(self):
-
+    def get_mip_status(self) -> GetMipStatusResponse:
         request = GetMipStatusRequest(id="0")
-        print(request, type(request))
-        get_mip_status_response: GetMipStatusResponse = asyncio.run(self._grpc_call("127.0.0.1", 33037, "get_mip_status", request))
+        get_mip_status_response: GetMipStatusResponse = asyncio.run(
+            self._grpc_call("127.0.0.1", 33037, "get_mip_status", request)
+        )
         return get_mip_status_response
 
     #
@@ -373,7 +410,7 @@ class Node:
         :param timeout: max number of seconds to wait for
         """
 
-        # TODO: can take into account the GENESIS time?
+        # TODO: can take into account the GENESIS time? env var?
 
         done = False
         count = 0.0
@@ -381,9 +418,8 @@ class Node:
 
         while not done:
             try:
-                # print("Caling get_last_period...")
                 self.get_last_period()
-            except (TypeError, requests.exceptions.ConnectionError) as e:
+            except (TypeError, requests.exceptions.ConnectionError):
                 # last slot is None - node has not yet fully started
                 # sleep a while between each try
                 time.sleep(duration)
@@ -391,5 +427,4 @@ class Node:
                 if count > timeout:
                     raise TimeoutError(f"Node is not ready after {timeout} seconds")
             else:
-                print("wait_ready is all done!")
                 done = True

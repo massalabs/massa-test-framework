@@ -3,7 +3,9 @@ __pycache__
 
 # Python virtualenv
 venv
-venv_dev
+venv*
+venv_*
+
 
 # Python packaging
 dist

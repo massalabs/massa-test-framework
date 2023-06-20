@@ -81,7 +81,6 @@ class ParamikoRemotePopen:
         done = False
         while not done:
             if channel.exit_status_ready() or channel.eof_received:
-
                 print("has exit status ready", channel.exit_status_ready())
                 print("has eof received", channel.eof_received)
 
@@ -105,7 +104,6 @@ class ParamikoRemotePopen:
                         break
 
             else:
-
                 # print("BgThread recv...")
                 if channel.recv_ready():
                     # fp.write(channel.recv(65535))
@@ -121,7 +119,6 @@ class ParamikoRemotePopen:
         # print("end of bgthread")
 
     def wait(self):
-
         done = False
         while not done:
             if self.channel.exit_status_ready() or self.channel.eof_received:
@@ -174,8 +171,12 @@ class SshServer:
     def open(self, path: str, mode: str) -> SFTPFile:
         return self.ftp_client.open(path, mode)
 
-    def run(self, cmd: List[str], cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None):
-
+    def run(
+        self,
+        cmd: List[str],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+    ):
         cmd = cmd[0]
         if cwd:
             # Emulate cwd
@@ -204,12 +205,22 @@ class Server:
         else:
             self.server.send_file(src, dst, file_permission)
 
-    def run(self, cmd: List[str], cwd: Optional[str] = None, env: Optional[Dict[str, str]] = None):
+    def run(
+        self,
+        cmd: List[str],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    ):
         if self.server_opts.local:
-            return subprocess.Popen(cmd, cwd=cwd, shell=True, env=env)
+            return subprocess.Popen(
+                cmd, cwd=cwd, shell=True, env=env, stdout=stdout, stderr=stderr
+            )
             # TODO: git clone with shell=True fails but why?
             # return subprocess.Popen(cmd, cwd=cwd)
         else:
+            # TODO: handle stdout & stderr
             return self.server.run(cmd, cwd)
 
     def mkdtemp(self, prefix: Optional[str]) -> Path | RemotePath:
@@ -236,3 +247,11 @@ class Server:
     def stop(self, process):
         if self.server_opts.local:
             process.terminate()
+
+    @property
+    def host(self) -> str:
+        """Server host (e.g. ip) as string"""
+        if self.server_opts.local:
+            return "127.0.0.1"
+        else:
+            return self.server_opts.ssh_host

@@ -1,0 +1,8 @@
+line-length = 110
+
+# Assume Python 3.11.
+target-version = "py311"
+
+[per-file-ignores]
+"__init__.py" = ["E402", "F401"]
+"massa_test_framework/massa_grpc/massa/model/v1/__init__.py" = ["E501"]

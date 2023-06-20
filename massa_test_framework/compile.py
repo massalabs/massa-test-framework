@@ -8,6 +8,7 @@ from massa_test_framework.server import Server
 
 import patch_ng
 
+
 class BuildKind(StrEnum):
     Debug = "debug"
     Release = "release"
@@ -22,16 +23,25 @@ class CompileOpts:
     build_opts: List[str] = field(default_factory=list)
     cargo_bin: str = "cargo"
     already_compiled: Optional[Path] = None
-    config_files: Dict[str, Path] = field(default_factory=lambda: {
-        "config.toml": Path("massa-node/base_config/config.toml"),
-        "initial_ledger.json": Path("massa-node/base_config/initial_ledger.json"),
-        "initial_peers.json": Path("massa-node/base_config/initial_peers.json"),
-        "initial_rolls.json": Path("massa-node/base_config/initial_rolls.json"),
-        "initial_vesting.json": Path("massa-node/base_config/initial_vesting.json"),
-        "node_privkey.key": Path("massa-node/config/node_privkey.key"),
-        "abi_gas_costs.json": Path("massa-node/base_config/gas_costs/abi_gas_costs.json"),
-        "wasm_gas_costs.json": Path("massa-node/base_config/gas_costs/wasm_gas_costs.json"),
-    })
+    config_files: Dict[str, Path] = field(
+        default_factory=lambda: {
+            "config.toml": Path("massa-node/base_config/config.toml"),
+            "initial_ledger.json": Path("massa-node/base_config/initial_ledger.json"),
+            "initial_peers.json": Path("massa-node/base_config/initial_peers.json"),
+            "initial_rolls.json": Path("massa-node/base_config/initial_rolls.json"),
+            "initial_vesting.json": Path("massa-node/base_config/initial_vesting.json"),
+            "bootstrap_whitelist.json": Path(
+                "massa-node/base_config/bootstrap_whitelist.json"
+            ),
+            "node_privkey.key": Path("massa-node/config/node_privkey.key"),
+            "abi_gas_costs.json": Path(
+                "massa-node/base_config/gas_costs/abi_gas_costs.json"
+            ),
+            "wasm_gas_costs.json": Path(
+                "massa-node/base_config/gas_costs/wasm_gas_costs.json"
+            ),
+        }
+    )
 
 
 class CompileUnit:
@@ -42,7 +52,7 @@ class CompileUnit:
         self._repo = ""
         self._patches: Dict[str, str | Path] = {}
 
-    def compile(self):
+    def compile(self) -> None:
         tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
         # print(self.compile_opts)
         # print(type(self.compile_opts))
@@ -56,7 +66,7 @@ class CompileUnit:
             proc.wait()
             print("Done.")
 
-        print("return code", proc.returncode)
+        # print("return code", proc.returncode)
         if proc.returncode != 0:
             # TODO: custom exception like CloneError
             raise RuntimeError(
@@ -71,24 +81,28 @@ class CompileUnit:
             else:
                 patchset = patch_ng.fromstring(patch)
 
-            patchset.apply(root=tmp_folder)
+            res = patchset.apply(root=tmp_folder)
+            if not res:
+                raise RuntimeError(
+                    f"Could not apply patch {patch_name} ({patch.absolute()}) to repo: {tmp_folder}"
+                )
             print("Done.")
 
         build_cmd = [self.compile_opts.cargo_bin, "build"]
-        print(self.compile_opts.build_opts)
+        # print(self.compile_opts.build_opts)
         build_cmd.extend(self.compile_opts.build_opts)
         with self.server.run([" ".join(build_cmd)], cwd=str(tmp_folder)) as proc:
             proc.wait()
             print("Done.")
 
-        print("return code", proc.returncode)
+        # print("return code", proc.returncode)
         if proc.returncode != 0:
             # TODO: custom exception like CompilationError
             raise RuntimeError("Could not build")
 
         self._repo = Path(tmp_folder)
 
-    def add_patch(self, patch_name: str, patch: bytes | Path):
+    def add_patch(self, patch_name: str, patch: bytes | Path) -> None:
         self._patches[patch_name] = patch
 
     @property
