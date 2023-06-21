@@ -68,6 +68,7 @@ class Node:
 
         self._to_install: Dict[str, Path] = {
             "massa_node": self.compile_unit.massa_node,
+            "massa_client": self.compile_unit.massa_client,
         }
         self._to_install.update(self.compile_unit.config_files)
         self._to_create = ["massa-node", "massa-node/config", "massa-client"]
@@ -172,21 +173,21 @@ class Node:
 
         for to_create in self._to_create:
             f = Path(tmp_folder) / to_create
-            # print(f"Creating {f}")
             self.server.mkdir(Path(f))
 
         for filename, to_install in self._to_install.items():
+
             src = repo / to_install
 
             if filename == "massa_node":
                 dst = tmp_folder / "massa-node" / to_install.name
+            elif filename == "massa_client":
+                dst = tmp_folder / "massa-client" / to_install.name
             elif filename == "node_privkey.key":
                 continue
             else:
                 dst = tmp_folder / to_install
-            # print("Creating folder", dst.parent)
             self.server.mkdir(dst.parent)
-            # print("is dst a remote path?", isinstance(dst, RemotePath))
             copy_file(src, dst)
 
         return tmp_folder
@@ -355,6 +356,9 @@ class Node:
 
     def edit_bootstrap_whitelist(self):
         return self.edit_json(self.config_files["bootstrap_whitelist.json"])
+
+    def remove_bootstrap_whitelist(self):
+        return self.server.remove(self.config_files["bootstrap_whitelist.json"])
 
     # API
 

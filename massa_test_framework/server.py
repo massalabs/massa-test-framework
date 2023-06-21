@@ -9,6 +9,7 @@ import datetime
 import shutil
 import subprocess
 import tempfile
+import os
 
 from typing import List, Optional, BinaryIO, TextIO, Dict
 
@@ -172,6 +173,9 @@ class SshServer:
     def open(self, path: str, mode: str) -> SFTPFile:
         return self.ftp_client.open(path, mode)
 
+    def remove(self, path: str) -> None:
+        return self.ftp_client.remove(path)
+
     def run(
         self,
         cmd: List[str],
@@ -252,6 +256,12 @@ class Server:
             return open(path, mode=mode)
         else:
             return self.server.open(str(path), mode)
+
+    def remove(self, path: str) -> None:
+        if self.server_opts.local:
+            return os.unlink(path)
+        else:
+            return self.server.remove(str(path))
 
     def stop(self, process):
         if self.server_opts.local:

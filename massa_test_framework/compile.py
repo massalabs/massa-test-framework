@@ -40,6 +40,7 @@ class CompileOpts:
             "wasm_gas_costs.json": Path(
                 "massa-node/base_config/gas_costs/wasm_gas_costs.json"
             ),
+            "client/config.toml": Path("massa-client/base_config/config.toml"),
         }
     )
 
@@ -143,6 +144,11 @@ class CompileUnit:
     def massa_node(self) -> Path:
         """Relative path (relative to compilation folder) to massa node binary"""
         return Path(f"target/{self.build_kind}/massa-node")
+
+    @property
+    def massa_client(self) -> Path:
+        """Relative path (relative to compilation folder) to massa client binary"""
+        return Path(f"target/{self.build_kind}/massa-client")
 
     @property
     def config_files(self) -> Dict[str, Path]:
