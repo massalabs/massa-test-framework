@@ -47,7 +47,7 @@ class ParamikoRemotePopen:
             args=[self.channel, stdout],
         )
         bgthd.daemon = True
-        print("Starting thread")
+        # print("Starting thread")
         bgthd.start()
 
         # self.channel.setblocking(0)
@@ -58,7 +58,7 @@ class ParamikoRemotePopen:
         #         print(f"Setting env: {env_var} - env_value: {env_value}")
         #         self.channel.set_environment_variable(env_var, env_value)
 
-        print("Exec command in channel")
+        # print("Exec command in channel")
         self.channel.exec_command(cmd)
         # session.setblocking(0)
         # session.settimeout(0.1)
@@ -66,29 +66,29 @@ class ParamikoRemotePopen:
         try:
             yield self
         finally:
-            print("[ParamikoRemotePopen - run] Exiting the context manager")
+            # print("[ParamikoRemotePopen - run] Exiting the context manager")
             self.channel.eof_received = True
             # Wait for thread to exit
 
-            print("Joining the background thread")
+            # print("Joining the background thread")
             bgthd.join(1)
 
             self.returncode = self.channel.exit_status
-            print("[ParamikoRemotePopen] self.returnode", self.returncode)
-            print("[ParamikoRemotePopen] self", self)
+            # print("[ParamikoRemotePopen] self.returnode", self.returncode)
+            # print("[ParamikoRemotePopen] self", self)
 
     @classmethod
     def output_fp(cls, channel: Channel, fp: BinaryIO | TextIO = sys.stdout):
-        print("Starting thread output_fp")
+        # print("Starting thread output_fp")
         done = False
         while not done:
             if channel.exit_status_ready() or channel.eof_received:
-                print("has exit status ready", channel.exit_status_ready())
-                print("has eof received", channel.eof_received)
+                # print("has exit status ready", channel.exit_status_ready())
+                # print("has eof received", channel.eof_received)
 
                 done = True
 
-                # On exit, wait for ~ 1s (time to read reamining in stdout/stderr)
+                # On exit, wait for ~ 1s (time to read remaining in stdout/stderr)
                 start = time.perf_counter()
                 while True:
                     if channel.recv_ready():
@@ -148,7 +148,7 @@ class SshServer:
 
     def mkdir(self, folder: Path, exist_ok: bool = False, parents: bool = False):
         # TODO: document behavior if folder already exists? parents?
-        print("Trying to create folder", folder)
+        # print("Trying to create folder", folder)
         if exist_ok:
             # TODO: use exception provided by mkdir instead of doing this
             #       EAFP: Easier to Ask Forgiveness than Permission
@@ -166,7 +166,7 @@ class SshServer:
         tmp_folder = prefix or "tmp_py_mf_"
         tmp_folder = Path("/tmp") / (tmp_folder + suffix)
         # TODO: if it fails, can wait a bit randomly and retry?
-        print("Try to create remotly", tmp_folder)
+        # print("Try to create remotly", tmp_folder)
         self.mkdir(str(tmp_folder))
         return tmp_folder
 
@@ -181,6 +181,8 @@ class SshServer:
         cmd: List[str],
         cwd: Optional[str] = None,
         env: Optional[Dict[str, str]] = None,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     ):
         cmd = cmd[0]
 
@@ -197,7 +199,7 @@ class SshServer:
         transport = self.client.get_transport()
         proc = ParamikoRemotePopen(transport.open_session())
         print("[SshServer] Run", cmd, "- env:", env)
-        return proc.run(cmd, stdout=sys.stdout)
+        return proc.run(cmd, stdout=stdout)
         # return proc
 
 
@@ -234,7 +236,7 @@ class Server:
             # return subprocess.Popen(cmd, cwd=cwd)
         else:
             # TODO: handle stdout & stderr
-            return self.server.run(cmd, cwd, env=env)
+            return self.server.run(cmd, cwd, env=env, stdout=stdout, stderr=stderr)
 
     def mkdtemp(self, prefix: Optional[str]) -> Path | RemotePath:
         if self.server_opts.local:

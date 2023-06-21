@@ -12,6 +12,7 @@ Package massa_test_framework doc
 
    about_framework
    quickstart
+   tips_for_dev
 
 .. toctree::
    :maxdepth: 2

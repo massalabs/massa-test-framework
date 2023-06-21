@@ -6,7 +6,7 @@ import json
 import time
 from urllib.parse import urlparse
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 
 import betterproto
 from grpclib.client import Channel
@@ -119,6 +119,8 @@ class Node:
             self.priv_api2 = massa_jsonrpc_api.Api2(
                 "http://{}:{}".format(self.server.host, priv_api_port)
             )
+            self.grpc_host = self.server.host
+            self.grpc_port = grpc_port
             self.grpc_url = "{}:{}".format(self.server.host, grpc_port)
 
         # TODO: can we have a dict: to_install and query this dict?
@@ -401,7 +403,9 @@ class Node:
         return res
 
     def send_operations(self, operations: List[bytes]) -> List[str]:
-        """Send operations using jsonrpc api
+        """Send operations (like coin transfer)
+
+        Send serialized operations using jsonrpc api
 
         Args:
             operations: a list of serialized operations
@@ -410,6 +414,17 @@ class Node:
         """
         res = self.pub_api2.send_operations(operations)
         return res["result"]
+
+    def node_peers_whitelist(self):
+        """Not implemented in Massa node"""
+        res = self.priv_api2.node_peers_whitelist()
+        print("node_peers_whitelist", res, type(res))
+        return res
+
+    def get_stakers(self):
+        res = self.pub_api2.get_stakers()
+        print("get_stakers", res, type(res))
+        return res
 
     # API GRPC
 
@@ -429,14 +444,14 @@ class Node:
     def get_version(self) -> str:
         request = GetVersionRequest(id="0")
         get_version_response: GetVersionResponse = asyncio.run(
-            self._grpc_call("127.0.0.1", 33037, "get_version", request)
+            self._grpc_call(self.grpc_host, self.grpc_port, "get_version", request)
         )
         return get_version_response.version
 
     def get_mip_status(self) -> GetMipStatusResponse:
         request = GetMipStatusRequest(id="0")
         get_mip_status_response: GetMipStatusResponse = asyncio.run(
-            self._grpc_call("127.0.0.1", 33037, "get_mip_status", request)
+            self._grpc_call(self.grpc_host, self.grpc_port, "get_mip_status", request)
         )
         return get_mip_status_response
 
@@ -468,3 +483,25 @@ class Node:
                     raise TimeoutError(f"Node is not ready after {timeout} seconds")
             else:
                 done = True
+
+    def wait_with_cb(self, cb: Callable[..., bool], timeout=20, sleep_duration=0.5) -> None:
+        """Wait for node with a custom callback function
+
+        Args:
+            timeout: max number of seconds to wait for
+            cb: function to call, must return boolean, return if result is True
+            sleep_duration: sleep duration in seconds between 2 cb calls
+        Raise:
+            TimeoutError: cb function did not return True after given timeout
+        """
+
+        done = False
+        count = 0.0
+
+        while not done:
+            done = cb()
+            if not done:
+                time.sleep(sleep_duration)
+                count += sleep_duration
+                if count > timeout:
+                    raise TimeoutError("Timeout after {timeout} seconds")

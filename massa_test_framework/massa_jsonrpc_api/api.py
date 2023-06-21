@@ -74,6 +74,31 @@ class JsonApi:
         )
         return headers, payload
 
+    @staticmethod
+    def node_peers_whitelist():
+        headers = {"Content-type": "application/json"}
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "node_peers_whitelist",
+                "id": 0,
+                "params": [],
+            }
+        )
+        return headers, payload
+
+    @staticmethod
+    def get_stakers():
+        headers = {"Content-type": "application/json"}
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "get_stakers",
+                "id": 0,
+                "params": [],
+            }
+        )
+        return headers, payload
 
 # class Api:
 #     def __init__(self, url) -> None:
