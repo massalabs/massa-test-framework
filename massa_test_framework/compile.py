@@ -1,12 +1,38 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+import re
 
 from typing import Optional, List, Dict
 
 from massa_test_framework.server import Server
 
 import patch_ng
+
+
+@dataclass
+class PatchConstant:
+    constant_name: str
+    new_value: str
+    constant_type: Optional[str]
+    constant_file: Optional[Path]
+
+    def apply(self, root=Path):
+
+        # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 10;
+
+        with open(root / self.constant_file, "r+") as fp:
+            content = fp.read()
+            content_sub = re.sub(
+                f"(pub )?const {self.constant_name}: (\w+) = (\w+);",
+                f"\g<1>const {self.constant_name}: \g<2> = {self.new_value};",
+                content
+            )
+            fp.seek(0)
+            fp.truncate(0)
+            fp.write(content_sub)
+
+        return True
 
 
 class BuildKind(StrEnum):
@@ -57,7 +83,7 @@ class CompileUnit:
         self.compile_opts = compile_opts
 
         self._repo = ""
-        self._patches: Dict[str, str | Path] = {}
+        self._patches: Dict[str, str | Path | PatchConstant] = {}
 
     def compile(self) -> None:
         """Clone, apply patches if any then compile
@@ -90,13 +116,15 @@ class CompileUnit:
             print(f"Applying patch {patch_name}")
             if isinstance(patch, Path):
                 patchset = patch_ng.fromfile(patch)
-            else:
+            elif isinstance(patch, str):
                 patchset = patch_ng.fromstring(patch)
+            else:
+                patchset = patch  # PatchConstant
 
             res = patchset.apply(root=tmp_folder)
             if not res:
                 raise RuntimeError(
-                    f"Could not apply patch {patch_name} ({patch.absolute()}) to repo: {tmp_folder}"
+                    f"Could not apply patch {patch_name} ({patch}) to repo: {tmp_folder}"
                 )
             print("Done.")
 
@@ -114,7 +142,7 @@ class CompileUnit:
 
         self._repo = Path(tmp_folder)
 
-    def add_patch(self, patch_name: str, patch: bytes | Path) -> None:
+    def add_patch(self, patch_name: str, patch: bytes | Path | PatchConstant) -> None:
         """ Add patch to apply after cloning
 
         Args:
@@ -124,7 +152,19 @@ class CompileUnit:
         Notes:
             Patch must be generated as unified patch (e.g. git diff --unified > foo.patch)
         """
+
         self._patches[patch_name] = patch
+
+    def add_patch_constant(self, constant_name: str, new_value: str, constant_type: Optional[str] = None, constant_file: Optional[Path] = "massa-models/src/config/constants.rs"):
+        """ Add a patch updating a constant value in a rust file
+
+        Args:
+            constant_name: const to update
+            new_value: ;)
+            constant_type: optional const type in rust file
+            constant_file: optional path
+        """
+        self._patches[f"patch_{constant_name}_to_{new_value}"] = PatchConstant(constant_name, new_value, constant_type, constant_file)
 
     @property
     def repo(self):
