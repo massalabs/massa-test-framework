@@ -3,7 +3,7 @@ from .node import Node
 from .compile import CompileOpts, CompileUnit
 
 # data
-from .misc import wallets
+from .misc import node_keys_list, NodeKeys
 
 # jsonrpc related
 from .massa_py import create_transaction

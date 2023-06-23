@@ -121,6 +121,10 @@ class CompileUnit:
             else:
                 patchset = patch  # PatchConstant
 
+            if isinstance(patchset, bool) and not patchset:
+                # patch_ng.fromfile or .fromstring return False on parse error
+                raise RuntimeError("Could not parse patch:", patch)
+
             res = patchset.apply(root=tmp_folder)
             if not res:
                 raise RuntimeError(
