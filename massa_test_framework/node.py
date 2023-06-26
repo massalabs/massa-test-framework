@@ -504,4 +504,4 @@ class Node:
                 time.sleep(sleep_duration)
                 count += sleep_duration
                 if count > timeout:
-                    raise TimeoutError("Timeout after {timeout} seconds")
+                    raise TimeoutError(f"Timeout after {timeout} seconds")

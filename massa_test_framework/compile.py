@@ -19,6 +19,8 @@ class PatchConstant:
 
     def apply(self, root=Path):
 
+        # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 1000;
+        # -->
         # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 10;
 
         with open(root / self.constant_file, "r+") as fp:
