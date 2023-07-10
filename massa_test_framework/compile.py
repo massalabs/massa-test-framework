@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 import re
+import copy
 
 from typing import Optional, List, Dict
 
@@ -17,7 +18,7 @@ class PatchConstant:
     constant_type: Optional[str]
     constant_file: Optional[Path]
 
-    def apply(self, root=Path):
+    def apply(self, root=Path, strip: int = 0, fuzz: bool = False):
 
         # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 1000;
         # -->
@@ -87,6 +88,28 @@ class CompileUnit:
         self._repo = ""
         self._patches: Dict[str, str | Path | PatchConstant] = {}
 
+    @staticmethod
+    def from_compile_unit(cu: "CompileUnit", repo_sync: bool = False) -> "CompileUnit":
+
+        """Create a new CompileUnit from another one
+
+        Set repo_sync to True in order to clone from folder thus having two identical repo.
+        Can be useful if you clone from a repo using a branch and someone push some changes between the 2 clones.
+
+        Args:
+            cu: the original compile unit object
+            repo_sync: If True, will clone from cu clone folder
+
+        Return:
+            A new CompileUnit
+        """
+
+        new_compile_opts = copy.copy(cu.compile_opts)
+        if repo_sync:
+            new_compile_opts.git_url = cu.repo
+
+        return CompileUnit(server=cu.server, compile_opts=new_compile_opts)
+
     def compile(self) -> None:
         """Clone, apply patches if any then compile
 
@@ -127,7 +150,7 @@ class CompileUnit:
                 # patch_ng.fromfile or .fromstring return False on parse error
                 raise RuntimeError("Could not parse patch:", patch)
 
-            res = patchset.apply(root=tmp_folder)
+            res = patchset.apply(root=tmp_folder, fuzz=True)
             if not res:
                 raise RuntimeError(
                     f"Could not apply patch {patch_name} ({patch}) to repo: {tmp_folder}"

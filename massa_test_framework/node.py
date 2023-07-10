@@ -233,14 +233,28 @@ class Node:
 
     @contextmanager
     def start(
-        self, env: Optional[Dict[str, str]] = None, stdout=sys.stdout, stderr=sys.stderr
+        self, env: Optional[Dict[str, str]] = None, args: Optional[List[str]] = None, stdout=sys.stdout, stderr=sys.stderr
     ):
         """Start a node
 
         Start a Massa node (as a context manager)
+        
+        Args:
+            env:
+            args: additional node arguments (e.g. ["--restart-from-snapshot-at-period", "10"])
+            stdout: where to log node standard output (default to sys.stdout)
+            stderr: where to log node standard error output (default to sys.stderr)
         """
+
+        cmd = " ".join(self.node_start_cmd)
+        if args:
+            args_joined = " ".join(args)
+            if args_joined:
+                cmd += " "
+                cmd += args_joined
+
         process = self.server.run(
-            [" ".join(self.node_start_cmd)],
+            [cmd],
             cwd=self.install_folder / "massa-node",
             env=env,
             stdout=stdout,
