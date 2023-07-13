@@ -34,7 +34,7 @@ class Node:
     def __init__(self, server: Server, compile_unit: CompileUnit):
         """Init a Node (e.g. a Massa Node) object
 
-        The new node can be started, stopeed, edited (various config files)
+        The new node can be started, stopped, edited (various config files)
 
         Args:
             server: the server on which the node will run on
@@ -49,23 +49,6 @@ class Node:
         self.server = server
         self.compile_unit = compile_unit
 
-        # self.to_install = [
-        #    ("target/release/massa-node", ""),
-        #    ("massa-node/base_config/config.toml", "base_config"),
-        #    ("massa-node/base_config/initial_ledger.json", "base_config"),
-        #    ("massa-node/base_config/initial_peers.json", "base_config"),
-        #    ("massa-node/base_config/initial_rolls.json", "base_config"),
-        #    ("massa-node/base_config/initial_vesting.json", "base_config"),
-        #    (
-        #        "massa-node/base_config/gas_costs/abi_gas_costs.json",
-        #        "base_config/gas_costs",
-        #    ),
-        #    (
-        #        "massa-node/base_config/gas_costs/wasm_gas_costs.json",
-        #        "base_config/gas_costs",
-        #    ),
-        # ]
-
         self._to_install: Dict[str, Path] = {
             "massa_node": self.compile_unit.massa_node,
             "massa_client": self.compile_unit.massa_client,
@@ -76,31 +59,12 @@ class Node:
         self.node_start_cmd = ["./massa-node", "-p", "1234"]
         self.node_stop_cmd = ""
 
-        # TODO: build this from config?
-        # if self.server.server_opts.local:
-        #     # self.pub_api = massa_jsonrpc_api.Api("http://127.0.0.1:33035")
-        #     # self.priv_api = massa_jsonrpc_api.Api("http://127.0.0.1:33034")
-        #     self.pub_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33035")
-        #     self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
-        #     # self.priv_api2 = massa_jsonrpc_api.Api2("http://127.0.0.1:33034")
-        #     self.grpc_url = "127.0.0.1:33037"
-        # else:
-        #     self.pub_api2 = massa_jsonrpc_api.Api2(
-        #         "http://{}:33035".format(self.server.server_opts.ssh_host)
-        #     )
-        #     self.priv_api2 = massa_jsonrpc_api.Api2(
-        #         "http://{}:33034".format(self.server.server_opts.ssh_host)
-        #     )
-        #     self.grpc_url = "{}:33037".format(self.server.server_opts.ssh_host)
-        # TODO: grpc api
-
         # setup node
         self.install_folder = self._install()
         self.config_files = {
             k: self.install_folder / p
             for k, p in self.compile_unit.config_files.items()
         }
-
         # print(self.config_files)
 
         with self.server.open(self.config_files["config.toml"], "r") as fp:
@@ -122,52 +86,6 @@ class Node:
             self.grpc_host = self.server.host
             self.grpc_port = grpc_port
             self.grpc_url = "{}:{}".format(self.server.host, grpc_port)
-
-        # TODO: can we have a dict: to_install and query this dict?
-        # self.config_path = Path(self.install_folder, "base_config/config.toml")
-        # self.initial_ledger_path = Path(
-        #     self.install_folder, "base_config/initial_ledger.json"
-        # )
-        # self.initial_peers_path = Path(
-        #     self.install_folder, "base_config/initial_peers.json"
-        # )
-        # self.initial_rolls_path = Path(
-        #     self.install_folder, "base_config/initial_rolls.json"
-        # )
-        # self.node_privkey_path = Path(
-        #     self.install_folder, "config/node_privkey.key"
-        # )
-
-        #
-
-    # def _install(self):
-    #     tmp_folder = self.server.mkdtemp(prefix="massa_")
-    #     print("Installing to tmp folder", tmp_folder)
-    #     repo = self.compile_unit.repo()
-    #     print("repo", repo)
-
-    #     for to_create in self.to_create:
-    #         f = Path(tmp_folder) / to_create
-    #         print(f"Creating {f}")
-    #         self.server.mkdir(Path(f))
-
-    #     print("to_install...")
-
-    #     for to_install, dst_rel_folder in self.to_install:
-    #         # TODO / FIXME
-    #         # p = self.node.path_join(repo, to_install)
-    #         p = repo / to_install
-    #         dst = Path(tmp_folder)
-    #         if dst_rel_folder:
-    #             dst /= dst_rel_folder
-
-    #         self.server.mkdir(dst)
-
-    #         dst /= Path(to_install).name
-    #         print(f"Copying {p} -> {dst} ...")
-    #         self.server.send_file(p, dst)
-
-    #     return tmp_folder
 
     def _install(self) -> Path | RemotePath:
         tmp_folder = self.server.mkdtemp(prefix="massa_")
@@ -253,6 +171,7 @@ class Node:
                 cmd += " "
                 cmd += args_joined
 
+        print("cmd:", cmd)
         process = self.server.run(
             [cmd],
             cwd=self.install_folder / "massa-node",

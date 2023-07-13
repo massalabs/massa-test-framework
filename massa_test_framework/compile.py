@@ -45,6 +45,7 @@ class BuildKind(StrEnum):
 
 @dataclass
 class CompileOpts:
+    # TODO: rename to clone_from? can be a path too + typing Path | url ?
     git_url: Optional[str] = "https://github.com/massalabs/massa.git"
     # Clone (git clone) option
     clone_opts: List[str] = field(default_factory=list)
@@ -218,6 +219,11 @@ class CompileUnit:
     def massa_client(self) -> Path:
         """Relative path (relative to compilation folder) to massa client binary"""
         return Path(f"target/{self.build_kind}/massa-client")
+
+    @property
+    def massa_ledger_editor(self) -> Path:
+        # TODO: can we factorize this with massa_node & massa_client?
+        return Path(f"target/{self.build_kind}/massa-ledger-editor")
 
     @property
     def config_files(self) -> Dict[str, Path]:
