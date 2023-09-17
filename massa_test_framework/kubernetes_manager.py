@@ -2,9 +2,88 @@
 import time
 from kubernetes import client, config
 
+class PodConfig:
+    """Configuration for a Kubernetes Pod."""
+    def __init__(self, namespace, container_name, docker_image, pod_name, opened_ports, authorized_keys):
+        """
+        Initialize a PodConfig object.
+
+        Args:
+            namespace (str): The namespace in which the pod will be created.
+            container_name (str): The name of the container within the pod.
+            docker_image (str): The Docker image to be used for the container.
+            pod_name (str): The name of the pod.
+            opened_ports (list): A list of ports to be opened in the container.
+            authorized_keys (str): Authorized SSH keys to be added to the pod's environment.
+        """
+        self.namespace = namespace
+        self.container_name = container_name
+        self.docker_image = docker_image
+        self.pod_name = pod_name
+        self.opened_ports = opened_ports
+        self.authorized_keys = authorized_keys
+
+class ServicePortConfig:
+    """Configuration for a Kubernetes Service Port."""
+    def __init__(self, port, target_port, node_port):
+        """
+        Initialize a ServicePortConfig object.
+
+        Args:
+            port (int): The port number to expose.
+            target_port (int): The port to forward traffic to within the pod.
+            node_port (int): The node port for external access.
+        """
+        self.port = port
+        self.target_port = target_port
+        self.node_port = node_port
+
+class ServiceConfig:
+    """Configuration for a Kubernetes Service."""
+    def __init__(self, namespace, pod_config, service_name, external_ips, service_ports: [ServicePortConfig]):
+        """
+        Initialize a ServiceConfig object.
+
+        Args:
+            namespace (str): The namespace in which the service will be created.
+            pod_config (PodConfig): The PodConfig object associated with this service.
+            service_name (str): The name of the service.
+            external_ips (list): List of external IP addresses for the service.
+            service_ports (list of ServicePortConfig): List of ServicePortConfig objects.
+        """
+        self.namespace = namespace
+        self.pod_config = pod_config
+        self.service_name = service_name
+        self.external_ips = external_ips
+        self.service_ports = service_ports
+
+class DeployConfig:
+    """Configuration for deploying a Kubernetes service and associated pod."""
+    def __init__(self, namespace, pod_config, service_config):
+        """
+        Initialize a DeployConfig object.
+
+        Args:
+            namespace (str): The namespace in which the service and pod will be created.
+            pod_config (PodConfig): The PodConfig object associated with this deployment.
+            service_config (ServiceConfig): The ServiceConfig object associated with this deployment.
+        """
+        self.namespace = namespace
+        self.pod_config = pod_config
+        self.service_config = service_config
+
 class KubernetesManager:
+    """
+    Class for managing a Kubernetes cluster.
+    """
     # Load Kubernetes configuration
     def __init__(self, config_file=None):
+        """
+        Initialize a KubernetesManager object.
+
+        Args:
+            config_file (str, optional): Path to a Kubernetes configuration file. If None, in-cluster config is used.
+        """
         if config_file:
             config.load_kube_config(config_file)
         else:
@@ -12,6 +91,12 @@ class KubernetesManager:
     
     # Function to create a namespace if it does not exist
     def create_namespace(self, namespace):
+        """
+        Create a Kubernetes namespace if it does not exist.
+
+        Args:
+            namespace (str): The name of the namespace to create.
+        """
         api_instance = client.CoreV1Api()
 
         try:
@@ -28,64 +113,85 @@ class KubernetesManager:
             print(f"Error creating namespace {namespace}: {e}")
 
     # Function to start a set of services with a specified Docker image and authorized keys
-    def create_pods(self, namespace, pod_names, docker_image, authorized_keys, opened_ports):
+    def create_pod(self, pods_config: PodConfig):
+        """
+        Create a Kubernetes pod.
+
+        Args:
+            pods_config (PodConfig): The PodConfig object containing pod configuration.
+        """
         api_instance = client.CoreV1Api()
 
-        for service_name in pod_names:
-            env_var = client.V1EnvVar(name="AUTHORIZED_KEYS", value=authorized_keys)
+        env_var = client.V1EnvVar(name="AUTHORIZED_KEYS", value=pods_config.authorized_keys)
+        container_ports = [
+            client.V1ContainerPort(container_port=port) for port in pods_config.opened_ports
+        ]
 
-            container_ports = [client.V1ContainerPort(container_port=22)] + [
-                client.V1ContainerPort(container_port=port) for port in opened_ports
-            ]
+        container = client.V1Container(
+            name=pods_config.pod_name,
+            image=pods_config.docker_image,
+            ports=container_ports,
+            env=[env_var],
+        )
 
-            container = client.V1Container(
-                name=service_name,
-                image=docker_image,
-                ports=container_ports,
-                env=[env_var],
-            )
+        pod = client.V1Pod(
+            metadata=client.V1ObjectMeta(
+                name=pods_config.pod_name,
+                labels={"app": pods_config.pod_name}
+            ),
+            spec=client.V1PodSpec(containers=[container]),
+        )
 
-            pod = client.V1Pod(
-                metadata=client.V1ObjectMeta(
-                    name=service_name,
-                    labels={"app": service_name}
-                ),
-                spec=client.V1PodSpec(containers=[container]),
-            )
-
-            try:
-                api_instance.create_namespaced_pod(namespace, pod)
-                print(f"Service {service_name} started successfully.")
-            except Exception as e:
-                print(f"Error starting service {service_name}: {e}")
+        try:
+            api_instance.create_namespaced_pod(pods_config.namespace, pod)
+            print(f"Pod {pods_config.pod_name} started successfully.")
+        except Exception as e:
+            print(f"Error starting pod {pods_config.pod_name}: {e}")
     
     # Function to create a service from external access
-    def create_services(self, namespace, service_name, external_ips, port, node_port):
+    def create_service(self, config: ServiceConfig):
+        """
+        Create a Kubernetes service for external access.
+
+        Args:
+            config (ServiceConfig): The ServiceConfig object containing service configuration.
+        """
         api_instance = client.CoreV1Api()
+        ports = []
+        for port_config in config.service_ports:
+            service_port = client.V1ServicePort(
+                port=port_config.port,
+                target_port=port_config.target_port,
+                node_port=port_config.node_port,
+            )
+            ports.append(service_port)
 
         service = client.V1Service(
-            metadata=client.V1ObjectMeta(name=service_name),
+            metadata=client.V1ObjectMeta(name=config.service_name),
             spec=client.V1ServiceSpec(
                 type="NodePort",
-                selector={"app": service_name},
-                ports=[
-                    client.V1ServicePort(
-                        port=port,
-                        target_port=22,
-                        node_port=node_port,
-                    )
-                ],
-                external_i_ps=external_ips
+                selector={"app": config.service_name},
+                ports=ports,
+                external_i_ps=config.external_ips
             ),
         )
 
         try:
-            api_instance.create_namespaced_service(namespace, service)
-            print(f"Service {service_name} created successfully.")
+            api_instance.create_namespaced_service(config.namespace, service)
+            print(f"Service {config.service_name} created successfully.")
         except Exception as e:
-            print(f"Error creating Service {service_name}: {e}")
+            print(f"Error creating Service {config.service_name}: {e}")
 
     def get_pods_info(self, namespace):
+        """
+        Get information about pods in a Kubernetes namespace.
+
+        Args:
+            namespace (str): The namespace to query.
+
+        Returns:
+            list: A list of dictionaries containing pod information.
+        """
         api_instance = client.CoreV1Api()
         pods_info = []
 
@@ -120,6 +226,15 @@ class KubernetesManager:
 
     # Function to get the informations of a service
     def get_services_info(self, namespace):
+        """
+        Get information about services in a Kubernetes namespace.
+
+        Args:
+            namespace (str): The namespace to query.
+
+        Returns:
+            list: A list of dictionaries containing service information.
+        """
         api_instance = client.CoreV1Api()
         services_info = []
 
@@ -149,6 +264,13 @@ class KubernetesManager:
 
     # Function to remove a set of services
     def remove_services(self, namespace, service_names=None):
+        """
+        Remove services from a Kubernetes namespace.
+
+        Args:
+            namespace (str): The namespace from which to remove services.
+            service_names (list, optional): List of service names to remove. If None, all services in the namespace are removed.
+        """
         api_instance = client.CoreV1Api()
 
         try:
@@ -166,6 +288,12 @@ class KubernetesManager:
 
     # Function to remove a namespace
     def remove_namespace(self, namespace):
+        """
+        Remove a Kubernetes namespace.
+
+        Args:
+            namespace (str): The namespace to remove.
+        """
         api_instance = client.CoreV1Api()
 
         try:
@@ -173,27 +301,3 @@ class KubernetesManager:
             print(f"Namespace {namespace} removed successfully.")
         except Exception as e:
             print(f"Error removing namespace {namespace}: {e}")
-
-class PodConfig:
-    def __init__(self, namespace, docker_image, pod_name, opened_ports, authorized_keys):
-        self.namespace = namespace
-        self.docker_image = docker_image
-        self.pod_name = pod_name
-        self.opened_ports = opened_ports
-        self.authorized_keys = authorized_keys
-
-class ServiceConfig:
-    def __init__(self, namespace, pod_config, service_name, external_ips, port, node_port):
-        self.namespace = namespace
-        self.pod_config = pod_config
-        self.service_name = service_name
-        self.external_ips = external_ips
-        self.port = port
-        self.node_port = node_port
-
-class DeployConfig:
-    def __init__(self, namespace, pod_config, service_config):
-        self.namespace = namespace
-        self.pod_config = pod_config
-        self.service_config = service_config
-#TODO propagate the new config
