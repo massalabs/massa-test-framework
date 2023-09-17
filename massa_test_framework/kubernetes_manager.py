@@ -1,10 +1,20 @@
-# Description: This file contains the class KubernetesManager, which is responsible for managing the Kubernetes cluster.
-import time
+# Description: This file contains the class KubernetesManager, 
+# which is responsible for managing the Kubernetes cluster.
 from kubernetes import client, config
+
 
 class PodConfig:
     """Configuration for a Kubernetes Pod."""
-    def __init__(self, namespace, container_name, docker_image, pod_name, opened_ports, authorized_keys):
+
+    def __init__(
+        self,
+        namespace,
+        container_name,
+        docker_image,
+        pod_name,
+        opened_ports,
+        authorized_keys,
+    ):
         """
         Initialize a PodConfig object.
 
@@ -23,8 +33,10 @@ class PodConfig:
         self.opened_ports = opened_ports
         self.authorized_keys = authorized_keys
 
+
 class ServicePortConfig:
     """Configuration for a Kubernetes Service Port."""
+
     def __init__(self, port, target_port, node_port):
         """
         Initialize a ServicePortConfig object.
@@ -38,9 +50,18 @@ class ServicePortConfig:
         self.target_port = target_port
         self.node_port = node_port
 
+
 class ServiceConfig:
     """Configuration for a Kubernetes Service."""
-    def __init__(self, namespace, pod_config, service_name, external_ips, service_ports: [ServicePortConfig]):
+
+    def __init__(
+        self,
+        namespace,
+        pod_config,
+        service_name,
+        external_ips,
+        service_ports: [ServicePortConfig],
+    ):
         """
         Initialize a ServiceConfig object.
 
@@ -57,8 +78,10 @@ class ServiceConfig:
         self.external_ips = external_ips
         self.service_ports = service_ports
 
+
 class DeployConfig:
     """Configuration for deploying a Kubernetes service and associated pod."""
+
     def __init__(self, namespace, pod_config, service_config):
         """
         Initialize a DeployConfig object.
@@ -72,23 +95,26 @@ class DeployConfig:
         self.pod_config = pod_config
         self.service_config = service_config
 
+
 class KubernetesManager:
     """
     Class for managing a Kubernetes cluster.
     """
+
     # Load Kubernetes configuration
     def __init__(self, config_file=None):
         """
         Initialize a KubernetesManager object.
 
         Args:
-            config_file (str, optional): Path to a Kubernetes configuration file. If None, in-cluster config is used.
+            config_file (str, optional): Path to a Kubernetes configuration file.
+            If None, in-cluster config is used.
         """
         if config_file:
             config.load_kube_config(config_file)
         else:
             config.load_incluster_config()
-    
+
     # Function to create a namespace if it does not exist
     def create_namespace(self, namespace):
         """
@@ -122,9 +148,12 @@ class KubernetesManager:
         """
         api_instance = client.CoreV1Api()
 
-        env_var = client.V1EnvVar(name="AUTHORIZED_KEYS", value=pods_config.authorized_keys)
+        env_var = client.V1EnvVar(
+            name="AUTHORIZED_KEYS", value=pods_config.authorized_keys
+        )
         container_ports = [
-            client.V1ContainerPort(container_port=port) for port in pods_config.opened_ports
+            client.V1ContainerPort(container_port=port)
+            for port in pods_config.opened_ports
         ]
 
         container = client.V1Container(
@@ -136,8 +165,7 @@ class KubernetesManager:
 
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
-                name=pods_config.pod_name,
-                labels={"app": pods_config.pod_name}
+                name=pods_config.pod_name, labels={"app": pods_config.pod_name}
             ),
             spec=client.V1PodSpec(containers=[container]),
         )
@@ -147,7 +175,7 @@ class KubernetesManager:
             print(f"Pod {pods_config.pod_name} started successfully.")
         except Exception as e:
             print(f"Error starting pod {pods_config.pod_name}: {e}")
-    
+
     # Function to create a service from external access
     def create_service(self, config: ServiceConfig):
         """
@@ -172,7 +200,7 @@ class KubernetesManager:
                 type="NodePort",
                 selector={"app": config.service_name},
                 ports=ports,
-                external_i_ps=config.external_ips
+                external_i_ps=config.external_ips,
             ),
         )
 
@@ -204,7 +232,7 @@ class KubernetesManager:
                     "name": pod.metadata.name,
                     "namespace": namespace,
                     "status": pod.status.phase,
-                    "container_ports": []
+                    "container_ports": [],
                 }
 
                 # Extract and add the container ports to the pod_info dictionary
@@ -213,7 +241,7 @@ class KubernetesManager:
                         container_port_info = {
                             "name": port.name,
                             "container_port": port.container_port,
-                            "protocol": port.protocol
+                            "protocol": port.protocol,
                         }
                         pod_info["container_ports"].append(container_port_info)
 
@@ -242,18 +270,17 @@ class KubernetesManager:
             services = api_instance.list_namespaced_service(namespace)
 
             for service in services.items:
-                service_info = {
-                    "name": service.metadata.name,
-                    "ports": []
-                }
+                service_info = {"name": service.metadata.name, "ports": []}
 
                 for port in service.spec.ports:
-                    service_info["ports"].append({
-                        "name": port.name,
-                        "port": port.port,
-                        "target_port": port.target_port,
-                        "node_port": port.node_port
-                    })
+                    service_info["ports"].append(
+                        {
+                            "name": port.name,
+                            "port": port.port,
+                            "target_port": port.target_port,
+                            "node_port": port.node_port,
+                        }
+                    )
 
                 services_info.append(service_info)
 
@@ -269,7 +296,8 @@ class KubernetesManager:
 
         Args:
             namespace (str): The namespace from which to remove services.
-            service_names (list, optional): List of service names to remove. If None, all services in the namespace are removed.
+            service_names (list, optional): List of service names to remove.
+            If None, all services in the namespace are removed.
         """
         api_instance = client.CoreV1Api()
 
@@ -297,7 +325,9 @@ class KubernetesManager:
         api_instance = client.CoreV1Api()
 
         try:
-            api_instance.delete_namespace(namespace, body=client.V1DeleteOptions(propagation_policy='Foreground'))
+            api_instance.delete_namespace(
+                namespace, body=client.V1DeleteOptions(propagation_policy="Foreground")
+            )
             print(f"Namespace {namespace} removed successfully.")
         except Exception as e:
             print(f"Error removing namespace {namespace}: {e}")

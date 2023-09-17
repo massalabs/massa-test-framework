@@ -12,8 +12,7 @@ from massa_test_framework.remote import copy_file, RemotePath
 # TODO: facto with Node
 class LedgerEditor:
     def __init__(self, server: Server, compile_unit: CompileUnit):
-        """Init a massa ledger editor object
-        """
+        """Init a massa ledger editor object"""
 
         self.server = server
         self.compile_unit = compile_unit
@@ -55,7 +54,9 @@ class LedgerEditor:
         return node
 
     @staticmethod
-    def from_dev(server: Server, repo: Path, build_opts: Optional[List[str]] = None) -> "LedgerEditor":
+    def from_dev(
+        server: Server, repo: Path, build_opts: Optional[List[str]] = None
+    ) -> "LedgerEditor":
         compile_opts = CompileOpts()
         compile_opts.already_compiled = repo
         if build_opts:
@@ -66,8 +67,11 @@ class LedgerEditor:
 
     @contextmanager
     def start(
-            self, env: Optional[Dict[str, str]] = None, args: Optional[List[str]] = None, stdout=sys.stdout,
-            stderr=sys.stderr
+        self,
+        env: Optional[Dict[str, str]] = None,
+        args: Optional[List[str]] = None,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     ):
         """Run Massa ledger editor
 
@@ -103,6 +107,7 @@ class LedgerEditor:
                 #       otherwise it will wait forever
                 #       so first print traceback then stop the process
                 import traceback
+
                 print(traceback.format_exc())
                 self.stop(p)
                 # Re Raise exception so test will be marked as failed
