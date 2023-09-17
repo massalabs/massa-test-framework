@@ -1,5 +1,4 @@
-# Description: This file contains the class KubernetesManager, 
-# which is responsible for managing the Kubernetes cluster.
+# Massa Kubernetes cluster manager
 from kubernetes import client, config
 
 
