@@ -130,7 +130,10 @@ class PodConfig:
 @dataclass
 class ServicePortConfig:
     """
-    Configuration for a Kubernetes Service Port.
+    Configuration for Kubernetes Service Port which is a configuration element
+    that defines the port number on which a Kubernetes Service listens
+    for incoming traffic and specifies how that traffic should be forwarded
+    to the Pods associated with the Service.
 
     Attributes:
         port (int): The port number to expose.
