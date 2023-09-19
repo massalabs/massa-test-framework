@@ -10,11 +10,7 @@ This tutorial provides an overview of how to use the `KubernetesManager` class f
 Getting Started
 ---------------
 
-Before you begin, make sure you have the necessary Python environment set up with the `kubernetes` library installed. You can install it using `pip`:
-
-```bash
-pip install kubernetes
-```
+Before you begin, make sure you have the necessary Python environment set up.
 
 Once you have the library installed, you can use the `KubernetesManager` class to interact with your Kubernetes cluster.
 
@@ -137,81 +133,4 @@ To remove an entire namespace:
 
 ```python
 k8s_manager.remove_namespace("my_namespace")
-```
-
-Massa Simulator Example
------------------------
-
-```python
-from kubernetes_manager import KubernetesManager, PodConfig, ServiceConfig, ServicePortConfig
-
-if __name__ == "__main__":
-
-    # Create a KubernetesManager instance
-    manager = KubernetesManager("PATH_TO/kubeconfig.yml")
-
-    # Example usage:
-    namespace = "massa-simulator"
-    opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245] # SSH PORT 22 + MASSA PORTS
-    external_ips = ["10.4.3.2"]
-    docker_image = "aoudiamoncef/ubuntu-sshd"  # Specify your Docker image
-    authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
-
-    node_1_pod_config = PodConfig(namespace, "massa-node-1-container", docker_image, "massa-node-1-pod", opened_ports, authorized_keys)
-    node_2_pod_config = PodConfig(namespace, "massa-node-2-container", docker_image, "massa-node-2-pod", opened_ports, authorized_keys)
-    node_3_pod_config = PodConfig(namespace, "massa-node-3-container", docker_image, "massa-node-3-pod", opened_ports, authorized_keys)
-
-    node_1_service_port_config = ServicePortConfig(20001, 22, 30001)
-    node_2_service_port_config = ServicePortConfig(20002, 22, 30002)
-    node_3_service_port_config = ServicePortConfig(20003, 22, 30003)
-
-    node_1_service_config = ServiceConfig(namespace, node_1_pod_config, "massa-node-1-service", external_ips, [node_1_service_port_config])
-    node_2_service_config = ServiceConfig(namespace, node_2_pod_config, "massa-node-2-service", external_ips, [node_2_service_port_config])
-    node_3_service_config = ServiceConfig(namespace, node_3_pod_config, "massa-node-3-service", external_ips, [node_3_service_port_config])
-
-    # Create a namespace if it does not exist
-    manager.create_namespace(namespace)
-
-    # Start services with the specified Docker image and authorized keys
-    manager.create_pod(node_1_pod_config)
-    manager.create_pod(node_2_pod_config)
-    manager.create_pod(node_3_pod_config)
-
-    # Wait for a moment to allow services to start
-    time.sleep(3)
-    
-    # Get the informations of the pods
-    pods_info = manager.get_pods_info(namespace)
-    # Print the obtained information
-    for pod_info in pods_info:
-        print(f"Pod Name: {pod_info['name']}")
-        print(f"Status: {pod_info['status']}")
-        print("Container Ports:")
-        for container_port_info in pod_info['container_ports']:
-            print(f"Container Port: {container_port_info['container_port']}")
-            print(f"Protocol: {container_port_info['protocol']}")
-
-    # Create NodePort services with specified node ports
-    manager.create_service(node_1_service_config)
-    manager.create_service(node_2_service_config)
-    manager.create_service(node_3_service_config)
-
-    # Wait for a moment to allow services to start
-    time.sleep(3)
-
-    # Get the informations of the services
-    services_info = manager.get_services_info(namespace)
-    print("Available Services:")
-    for service_info in services_info:
-        print(f"Service Name: {service_info['name']}")
-        print("Ports:")
-        for port_info in service_info['ports']:
-            print(f"  Port: {port_info['port']}, Target Port: {port_info['target_port']}, Node Port: {port_info['node_port']}")
-        print("\n")
-
-    # Wait for a moment before removing the namespace
-    time.sleep(60)
-
-    # Remove the namespace
-    manager.remove_namespace(namespace)
 ```
