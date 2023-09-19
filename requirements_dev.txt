@@ -5,4 +5,4 @@ types-requests==2.31
 ruff
 sphinx
 myst-parser
-kubernetes==27.2.0
+kubernetes-stubs

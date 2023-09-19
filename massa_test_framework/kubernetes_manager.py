@@ -33,17 +33,23 @@ Example:
         docker_image = "aoudiamoncef/ubuntu-sshd"  # Specify your Docker image
         authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
 
-        node_1_pod_config = PodConfig(namespace, "massa-node-1-container", docker_image, "massa-node-1-pod", opened_ports, authorized_keys)
-        node_2_pod_config = PodConfig(namespace, "massa-node-2-container", docker_image, "massa-node-2-pod", opened_ports, authorized_keys)
-        node_3_pod_config = PodConfig(namespace, "massa-node-3-container", docker_image, "massa-node-3-pod", opened_ports, authorized_keys)
+        node_1_pod_config = PodConfig(namespace, "massa-node-1-container",
+          docker_image, "massa-node-1-pod", opened_ports, authorized_keys)
+        node_2_pod_config = PodConfig(namespace, "massa-node-2-container",
+          docker_image, "massa-node-2-pod", opened_ports, authorized_keys)
+        node_3_pod_config = PodConfig(namespace, "massa-node-3-container", 
+        docker_image, "massa-node-3-pod", opened_ports, authorized_keys)
 
         node_1_service_port_config = ServicePortConfig(20001, 22, 30001)
         node_2_service_port_config = ServicePortConfig(20002, 22, 30002)
         node_3_service_port_config = ServicePortConfig(20003, 22, 30003)
 
-        node_1_service_config = ServiceConfig(namespace, node_1_pod_config, "massa-node-1-service", external_ips, [node_1_service_port_config])
-        node_2_service_config = ServiceConfig(namespace, node_2_pod_config, "massa-node-2-service", external_ips, [node_2_service_port_config])
-        node_3_service_config = ServiceConfig(namespace, node_3_pod_config, "massa-node-3-service", external_ips, [node_3_service_port_config])
+        node_1_service_config = ServiceConfig(namespace, node_1_pod_config, 
+        "massa-node-1-service", external_ips, [node_1_service_port_config])
+        node_2_service_config = ServiceConfig(namespace, node_2_pod_config, 
+        "massa-node-2-service", external_ips, [node_2_service_port_config])
+        node_3_service_config = ServiceConfig(namespace, node_3_pod_config, 
+        "massa-node-3-service", external_ips, [node_3_service_port_config])
 
         # Create a namespace if it does not exist
         manager.create_namespace(namespace)
@@ -82,7 +88,8 @@ Example:
             print(f"Service Name: {service_info['name']}")
             print("Ports:")
             for port_info in service_info['ports']:
-                print(f"  Port: {port_info['port']}, Target Port: {port_info['target_port']}, Node Port: {port_info['node_port']}")
+                print(f"  Port: {port_info['port']}, Target Port: {port_info['target_port']}, 
+                Node Port: {port_info['node_port']}")
             print("\n")
 
         # Wait for a moment before removing the namespace
@@ -106,7 +113,7 @@ class PodConfig:
         docker_image (str): The Docker image to be used for the container.
         pod_name (str): The name of the pod.
         opened_ports (list[int]): A list of port numbers to be opened in the container.
-        authorized_keys (str): Authorized SSH keys to be added to the pod's environment.
+        authorized_keys (list[str]): Authorized SSH keys to be added to the pod's environment.
     """
 
     namespace: str
@@ -114,7 +121,8 @@ class PodConfig:
     docker_image: str
     pod_name: str
     opened_ports: list[int]
-    authorized_keys: str
+    authorized_keys: list[str]
+
 
 @dataclass
 class ServicePortConfig:
@@ -130,6 +138,7 @@ class ServicePortConfig:
     port: int
     target_port: int
     node_port: int
+
 
 @dataclass
 class ServiceConfig:
@@ -150,6 +159,7 @@ class ServiceConfig:
     external_ips: list[str]
     service_ports: list[ServicePortConfig]
 
+
 @dataclass
 class DeployConfig:
     """
@@ -164,6 +174,7 @@ class DeployConfig:
     namespace: str
     pod_config: PodConfig
     service_config: ServiceConfig
+
 
 class KubernetesManager:
     """
