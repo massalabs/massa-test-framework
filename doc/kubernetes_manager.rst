@@ -52,13 +52,13 @@ pod_config = PodConfig(
     namespace="my_namespace",
     container_name="my-container",
     docker_image="my-docker-image",
-    pod_name="my-pod",
+    name="my-pod",
     opened_ports=[80, 443],
-    authorized_keys="ssh-rsa my-public-key"
+    env_variables={"AUTHORIZED_KEYS" : "ssh-rsa my-public-key"}
 )
 ```
 
-2. Create an instance of `KubernetesManager`:
+1. Create an instance of `KubernetesManager`:
 
 ```python
 k8s_manager = KubernetesManager()
@@ -85,7 +85,7 @@ service_ports = [ServicePortConfig(port=80, target_port=8080, node_port=30000)]
 service_config = ServiceConfig(
     namespace="my_namespace",
     pod_config=pod_config,
-    service_name="my-service",
+    name="my-service",
     external_ips=["1.2.3.4"],
     service_ports=service_ports
 )
@@ -126,7 +126,7 @@ To remove Kubernetes resources such as pods, services, or namespaces, you can us
 For example, to remove a specific service:
 
 ```python
-k8s_manager.remove_services("my_namespace", service_names=["my-service"])
+k8s_manager.remove_services("my_namespace", names=["my-service"])
 ```
 
 To remove an entire namespace:

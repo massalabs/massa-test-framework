@@ -32,13 +32,16 @@ Example:
         external_ips = ["10.4.3.2"]
         docker_image = "aoudiamoncef/ubuntu-sshd"  # Specify your Docker image
         authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
+        env_vars_map = {
+            "AUTHORIZED_KEYS": authorized_keys,
+        }
 
         node_1_pod_config = PodConfig(namespace, "massa-node-1-container",
-          docker_image, "massa-node-1-pod", opened_ports, authorized_keys)
+          docker_image, "massa-node-1-pod", opened_ports, env_vars_map)
         node_2_pod_config = PodConfig(namespace, "massa-node-2-container",
-          docker_image, "massa-node-2-pod", opened_ports, authorized_keys)
+          docker_image, "massa-node-2-pod", opened_ports, env_vars_map)
         node_3_pod_config = PodConfig(namespace, "massa-node-3-container", 
-        docker_image, "massa-node-3-pod", opened_ports, authorized_keys)
+        docker_image, "massa-node-3-pod", opened_ports, env_vars_map)
 
         node_1_service_port_config = ServicePortConfig(20001, 22, 30001)
         node_2_service_port_config = ServicePortConfig(20002, 22, 30002)
@@ -111,17 +114,17 @@ class PodConfig:
         namespace (str): The namespace in which the pod will be created.
         container_name (str): The name of the container within the pod.
         docker_image (str): The Docker image to be used for the container.
-        pod_name (str): The name of the pod.
+        name (str): The name of the pod.
         opened_ports (list[int]): A list of port numbers to be opened in the container.
-        authorized_keys (list[str]): Authorized SSH keys to be added to the pod's environment.
+        env_variables (dict): Envirement variables to be added to the pod's environment.
     """
 
     namespace: str
     container_name: str
     docker_image: str
-    pod_name: str
+    name: str
     opened_ports: list[int]
-    authorized_keys: list[str]
+    env_variables: dict
 
 
 @dataclass
@@ -148,14 +151,14 @@ class ServiceConfig:
     Attributes:
         namespace (str): The namespace in which the service will be created.
         pod_config (PodConfig): The PodConfig object associated with this service.
-        service_name (str): The name of the service.
+        name (str): The name of the service.
         external_ips (list[str]): List of external IP addresses for the service.
         service_ports (list of ServicePortConfig): List of ServicePortConfig objects.
     """
 
     namespace: str
     pod_config: PodConfig
-    service_name: str
+    name: str
     external_ips: list[str]
     service_ports: list[ServicePortConfig]
 
@@ -174,6 +177,36 @@ class DeployConfig:
     namespace: str
     pod_config: PodConfig
     service_config: ServiceConfig
+
+
+@dataclass
+class PortInfo:
+    """
+    Data class representing information about a service port.
+
+    Attributes:
+        port (int): The port number.
+        target_port (int): The target port number.
+        node_port (int): The node port number.
+    """
+
+    port: int
+    target_port: int
+    node_port: int
+
+
+@dataclass
+class ServiceInfo:
+    """
+    Data class representing information about a Kubernetes service.
+
+    Attributes:
+        name (str): The name of the service.
+        ports (list[PortInfo]): A list of PortInfo instances representing service ports.
+    """
+
+    name: str
+    ports: list[PortInfo]
 
 
 class KubernetesManager:
@@ -218,6 +251,34 @@ class KubernetesManager:
         except Exception as e:
             print(f"Error creating namespace {namespace}: {e}")
 
+    # Function that creates envirement variables
+    def create_env_variables(self, env_vars_map):
+        """
+        Create a list of Kubernetes environment variables from a dictionary.
+
+        Args:
+            env_vars_map (dict): A dictionary where keys are environment variable names
+                             and values are the corresponding values.
+
+        Returns:
+            list: A list of Kubernetes environment variable objects.
+        """
+        env_vars = []
+        for name, value in env_vars_map.items():
+            env_var = client.V1EnvVar(name=name)
+            if isinstance(value, list):
+                # Handle list values with a ConfigMapKeySelector
+                env_var.value_from = client.V1EnvVarSource(
+                    config_map_key_ref=client.V1ConfigMapKeySelector(
+                        name=name,  # Use the same name for ConfigMap and key
+                        key=name,
+                    )
+                )
+            else:
+                env_var.value = str(value)
+            env_vars.append(env_var)
+        return env_vars
+
     # Function to start a set of services with a specified Docker image and authorized keys
     def create_pod(self, pods_config: PodConfig):
         """
@@ -228,33 +289,30 @@ class KubernetesManager:
         """
         api_instance = client.CoreV1Api()
 
-        env_var = client.V1EnvVar(
-            name="AUTHORIZED_KEYS", value=pods_config.authorized_keys
-        )
         container_ports = [
             client.V1ContainerPort(container_port=port)
             for port in pods_config.opened_ports
         ]
 
         container = client.V1Container(
-            name=pods_config.pod_name,
+            name=pods_config.name,
             image=pods_config.docker_image,
             ports=container_ports,
-            env=[env_var],
+            env=self.create_env_variables(pods_config.env_variables),
         )
 
         pod = client.V1Pod(
             metadata=client.V1ObjectMeta(
-                name=pods_config.pod_name, labels={"app": pods_config.pod_name}
+                name=pods_config.name, labels={"app": pods_config.name}
             ),
             spec=client.V1PodSpec(containers=[container]),
         )
 
         try:
             api_instance.create_namespaced_pod(pods_config.namespace, pod)
-            print(f"Pod {pods_config.pod_name} started successfully.")
+            print(f"Pod {pods_config.name} started successfully.")
         except Exception as e:
-            print(f"Error starting pod {pods_config.pod_name}: {e}")
+            print(f"Error starting pod {pods_config.name}: {e}")
 
     # Function to create a service from external access
     def create_service(self, config: ServiceConfig):
@@ -275,10 +333,10 @@ class KubernetesManager:
             ports.append(service_port)
 
         service = client.V1Service(
-            metadata=client.V1ObjectMeta(name=config.service_name),
+            metadata=client.V1ObjectMeta(name=config.name),
             spec=client.V1ServiceSpec(
                 type="NodePort",
-                selector={"app": config.service_name},
+                selector={"app": config.name},
                 ports=ports,
                 external_i_ps=config.external_ips,
             ),
@@ -286,9 +344,9 @@ class KubernetesManager:
 
         try:
             api_instance.create_namespaced_service(config.namespace, service)
-            print(f"Service {config.service_name} created successfully.")
+            print(f"Service {config.name} created successfully.")
         except Exception as e:
-            print(f"Error creating Service {config.service_name}: {e}")
+            print(f"Error creating Service {config.name}: {e}")
 
     def get_pods_info(self, namespace):
         """
@@ -350,17 +408,20 @@ class KubernetesManager:
             services = api_instance.list_namespaced_service(namespace)
 
             for service in services.items:
-                service_info = {"name": service.metadata.name, "ports": []}
+                port_infos = []
 
                 for port in service.spec.ports:
-                    service_info["ports"].append(
-                        {
-                            "name": port.name,
-                            "port": port.port,
-                            "target_port": port.target_port,
-                            "node_port": port.node_port,
-                        }
+                    port_info = PortInfo(
+                        port=port.port,
+                        target_port=port.target_port,
+                        node_port=port.node_port,
                     )
+                    port_infos.append(port_info)
+
+                service_info = ServiceInfo(
+                    name=service.metadata.name,
+                    ports=port_infos,
+                )
 
                 services_info.append(service_info)
 
@@ -370,22 +431,22 @@ class KubernetesManager:
         return services_info
 
     # Function to remove a set of services
-    def remove_services(self, namespace, service_names=None):
+    def remove_services(self, namespace, names=None):
         """
         Remove services from a Kubernetes namespace.
 
         Args:
             namespace (str): The namespace from which to remove services.
-            service_names (list, optional): List of service names to remove.
+            names (list, optional): List of service names to remove.
             If None, all services in the namespace are removed.
         """
         api_instance = client.CoreV1Api()
 
         try:
-            if service_names:
-                for service_name in service_names:
-                    api_instance.delete_namespaced_pod(service_name, namespace)
-                    print(f"Service {service_name} killed successfully.")
+            if names:
+                for name in names:
+                    api_instance.delete_namespaced_pod(name, namespace)
+                    print(f"Service {name} killed successfully.")
             else:
                 pods = api_instance.list_namespaced_pod(namespace)
                 for pod in pods.items:

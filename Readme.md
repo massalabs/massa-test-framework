@@ -41,9 +41,6 @@ with node1.start():
 - Install dev requirements:
     `venv_dev/bin/python -m pip install -r requirements-dev.txt`
 
-- Install gRPC requirements:
-    `venv_dev/bin/python -m pip install -r requirements-grpc.txt`
-
 ## Tools
 
 - Formatter [black](https://github.com/psf/black):
