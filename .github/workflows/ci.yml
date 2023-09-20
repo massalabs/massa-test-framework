@@ -14,4 +14,4 @@ jobs:
     - run: pip install -r requirements_dev.txt
     - run: black --diff --check massa_test_framework/
     - run: ruff check massa_test_framework/
-    - run: mypy massa_test_framework/
+    - run: mypy
