@@ -240,7 +240,7 @@ class KubernetesManager:
             namespace (str): The name of the namespace to create.
         """
         api_instance = client.CoreV1Api()
-        
+
         body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
 
         api_instance.create_namespace(body)
@@ -384,7 +384,7 @@ class KubernetesManager:
             list: A list of dictionaries containing service information.
         """
         api_instance = client.CoreV1Api()
-        
+
         services_info = []
         services = api_instance.list_namespaced_service(namespace)
 

@@ -46,6 +46,7 @@ from kubernetes_manager import (
 )
 from dataclasses import dataclass, field
 
+
 @dataclass
 class MassaClusterConfig:
     """
@@ -77,7 +78,7 @@ class MassaClusterConfig:
 class MassaClusterManager:
     def __init__(self, kube_config_path: Optional[str] = None):
         self.manager = KubernetesManager(kube_config_path)
-    
+
     # Function to launch a Massa cluster
     def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
