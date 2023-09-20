@@ -61,6 +61,6 @@ Note:
 
 ## Generating massa_grpc
 
-python3 -m venv venv_grpc
-venv_grpc/bin/python -m pip install --upgrade betterproto[compiler]==2.0.0b5
-PATH=$PATH:venv_grpc/bin/ protoc -I$HOME/dev/massa-proto/proto/commons/ -I$HOME/dev/massa-proto/proto/apis/massa/api/v1/ -I$HOME/dev/massa-proto/proto/third_party/ --python_betterproto_out=massa $HOME/dev/massa-proto/proto/apis/massa/api/v1/api.proto
+* python3 -m venv venv_grpc
+* venv_grpc/bin/python -m pip install --upgrade betterproto[compiler]==2.0.0b5
+* PATH=$PATH:venv_grpc/bin/ protoc -I$HOME/dev/massa-proto/proto/commons/ -I$HOME/dev/massa-proto/proto/apis/massa/api/v1/ -I$HOME/dev/massa-proto/proto/third_party/ --python_betterproto_out=massa $HOME/dev/massa-proto/proto/apis/massa/api/v1/api.proto
