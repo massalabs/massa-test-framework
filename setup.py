@@ -22,7 +22,8 @@ setup(
         "varint==1.0.2",
         "ed25519==1.5",
         "patch-ng==1.17.4",
-        "betterproto==2.0.0b5",
+        # "betterproto==2.0.0b5",
+        "massa-proto-python==0.0.1"
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=['python'],
