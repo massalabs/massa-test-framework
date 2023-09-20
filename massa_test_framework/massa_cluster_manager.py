@@ -40,13 +40,11 @@ from typing import Optional
 from kubernetes_manager import (
     KubernetesManager,
     PodConfig,
+    ServiceInfo,
     ServiceConfig,
     ServicePortConfig,
 )
 from dataclasses import dataclass, field
-
-from massa_test_framework.kubernetes_manager import ServiceInfo
-
 
 @dataclass
 class MassaClusterConfig:
@@ -79,12 +77,15 @@ class MassaClusterConfig:
 class MassaClusterManager:
     def __init__(self, kube_config_path: Optional[str] = None):
         self.manager = KubernetesManager(kube_config_path)
-
-    def init(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
+    
+    # Function to launch a Massa cluster
+    def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
         docker_image = "aoudiamoncef/ubuntu-sshd"
         env_variables = {"AUTHORIZED_KEYS": cluster_config.authorized_keys}
+
         self.manager.create_namespace(cluster_config.namespace)
+        
         # Create and start all pods
         pod_configs = []
         for node_index in range(1, cluster_config.nodes_number + 1):
@@ -103,7 +104,7 @@ class MassaClusterManager:
         time.sleep(cluster_config.startup_pods_timeout)
 
         # Create all services after pods have started
-        for node_index, pod_config in enumerate(pod_configs, start = 1):
+        for node_index, pod_config in enumerate(pod_configs, start=1):
             service_port_config = ServicePortConfig(
                 20000 + node_index, 22, 30000 + node_index
             )
@@ -121,6 +122,7 @@ class MassaClusterManager:
 
         return self.manager.get_services_info(cluster_config.namespace)
 
-    def terminate(self, namespace: str, terminating_timeout: int = 5):
+    # Function to terminate a Massa cluster
+    def terminate(self, namespace: str, terminating_timeout: int = 30):
         self.manager.remove_namespace(namespace)
         time.sleep(terminating_timeout)

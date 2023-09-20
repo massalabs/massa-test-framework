@@ -231,7 +231,7 @@ class KubernetesManager:
         else:
             config.load_incluster_config()
 
-    # Function to create a namespace if it does not exist
+    # Function to create a namespace
     def create_namespace(self, namespace):
         """
         Create a Kubernetes namespace if it does not exist.
@@ -240,19 +240,10 @@ class KubernetesManager:
             namespace (str): The name of the namespace to create.
         """
         api_instance = client.CoreV1Api()
+        
+        body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
 
-        try:
-            api_instance.read_namespace(namespace)
-            print(f"Namespace {namespace} already exists.")
-        except client.rest.ApiException as e:
-            if e.status == 404:
-                body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
-                api_instance.create_namespace(body)
-                print(f"Namespace {namespace} created successfully.")
-            else:
-                print(f"Error checking namespace {namespace}: {e}")
-        except Exception as e:
-            print(f"Error creating namespace {namespace}: {e}")
+        api_instance.create_namespace(body)
 
     # Function that creates envirement variables
     def create_env_variables(self, env_vars_map):
@@ -311,11 +302,7 @@ class KubernetesManager:
             spec=client.V1PodSpec(containers=[container]),
         )
 
-        try:
-            api_instance.create_namespaced_pod(pods_config.namespace, pod)
-            print(f"Pod {pods_config.name} started successfully.")
-        except Exception as e:
-            print(f"Error starting pod {pods_config.name}: {e}")
+        api_instance.create_namespaced_pod(pods_config.namespace, pod)
 
     # Function to create a service from external access
     def create_service(self, config: ServiceConfig):
@@ -345,11 +332,7 @@ class KubernetesManager:
             ),
         )
 
-        try:
-            api_instance.create_namespaced_service(config.namespace, service)
-            print(f"Service {config.name} created successfully.")
-        except Exception as e:
-            print(f"Error creating Service {config.name}: {e}")
+        api_instance.create_namespaced_service(config.namespace, service)
 
     def get_pods_info(self, namespace):
         """
@@ -364,32 +347,28 @@ class KubernetesManager:
         api_instance = client.CoreV1Api()
         pods_info = []
 
-        try:
-            # List Pods in the specified namespace
-            pods = api_instance.list_namespaced_pod(namespace)
+        # List Pods in the specified namespace
+        pods = api_instance.list_namespaced_pod(namespace)
 
-            for pod in pods.items:
-                pod_info = {
-                    "name": pod.metadata.name,
-                    "namespace": namespace,
-                    "status": pod.status.phase,
-                    "container_ports": [],
-                }
+        for pod in pods.items:
+            pod_info = {
+                "name": pod.metadata.name,
+                "namespace": namespace,
+                "status": pod.status.phase,
+                "container_ports": [],
+            }
 
-                # Extract and add the container ports to the pod_info dictionary
-                for container in pod.spec.containers:
-                    for port in container.ports:
-                        container_port_info = {
-                            "name": port.name,
-                            "container_port": port.container_port,
-                            "protocol": port.protocol,
-                        }
-                        pod_info["container_ports"].append(container_port_info)
+            # Extract and add the container ports to the pod_info dictionary
+            for container in pod.spec.containers:
+                for port in container.ports:
+                    container_port_info = {
+                        "name": port.name,
+                        "container_port": port.container_port,
+                        "protocol": port.protocol,
+                    }
+                    pod_info["container_ports"].append(container_port_info)
 
-                pods_info.append(pod_info)
-
-        except Exception as e:
-            print(f"Error getting pods in namespace {namespace}: {e}")
+            pods_info.append(pod_info)
 
         return pods_info
 
@@ -405,31 +384,27 @@ class KubernetesManager:
             list: A list of dictionaries containing service information.
         """
         api_instance = client.CoreV1Api()
+        
         services_info = []
+        services = api_instance.list_namespaced_service(namespace)
 
-        try:
-            services = api_instance.list_namespaced_service(namespace)
+        for service in services.items:
+            port_infos = []
 
-            for service in services.items:
-                port_infos = []
-
-                for port in service.spec.ports:
-                    port_info = PortInfo(
-                        port=port.port,
-                        target_port=port.target_port,
-                        node_port=port.node_port,
-                    )
-                    port_infos.append(port_info)
-
-                service_info = ServiceInfo(
-                    name=service.metadata.name,
-                    ports=port_infos,
+            for port in service.spec.ports:
+                port_info = PortInfo(
+                    port=port.port,
+                    target_port=port.target_port,
+                    node_port=port.node_port,
                 )
+                port_infos.append(port_info)
 
-                services_info.append(service_info)
+            service_info = ServiceInfo(
+                name=service.metadata.name,
+                ports=port_infos,
+            )
 
-        except Exception as e:
-            print(f"Error getting services in namespace {namespace}: {e}")
+            services_info.append(service_info)
 
         return services_info
 
@@ -445,18 +420,13 @@ class KubernetesManager:
         """
         api_instance = client.CoreV1Api()
 
-        try:
-            if names:
-                for name in names:
-                    api_instance.delete_namespaced_pod(name, namespace)
-                    print(f"Service {name} killed successfully.")
-            else:
-                pods = api_instance.list_namespaced_pod(namespace)
-                for pod in pods.items:
-                    api_instance.delete_namespaced_pod(pod.metadata.name, namespace)
-                    print(f"Service {pod.metadata.name} killed successfully.")
-        except Exception as e:
-            print(f"Error killing services in namespace {namespace}: {e}")
+        if names:
+            for name in names:
+                api_instance.delete_namespaced_service(name, namespace)
+        else:
+            pods = api_instance.list_namespaced_service(namespace)
+            for pod in pods.items:
+                api_instance.delete_namespaced_service(pod.metadata.name, namespace)
 
     # Function to remove a namespace
     def remove_namespace(self, namespace):
@@ -467,11 +437,6 @@ class KubernetesManager:
             namespace (str): The namespace to remove.
         """
         api_instance = client.CoreV1Api()
-
-        try:
-            api_instance.delete_namespace(
-                namespace, body=client.V1DeleteOptions(propagation_policy="Foreground")
-            )
-            print(f"Namespace {namespace} removed successfully.")
-        except Exception as e:
-            print(f"Error removing namespace {namespace}: {e}")
+        api_instance.delete_namespace(
+            namespace, body=client.V1DeleteOptions(propagation_policy="Foreground")
+        )
