@@ -27,7 +27,7 @@ Example:
         manager = MassaClusterManager(
             "PATH_TO/kubeconfig.yml"
         )
-        services_infos = manager.init(cluster_config)
+        services_infos = manager.launch(cluster_config)
         for service_info in services_infos:
             print(service_info.name, external_ips[0], service_info.ports[0].port)
         print("Waiting terminating...")
@@ -85,7 +85,7 @@ class MassaClusterManager:
         env_variables = {"AUTHORIZED_KEYS": cluster_config.authorized_keys}
 
         self.manager.create_namespace(cluster_config.namespace)
-        
+
         # Create and start all pods
         pod_configs = []
         for node_index in range(1, cluster_config.nodes_number + 1):

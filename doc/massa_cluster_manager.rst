@@ -61,7 +61,7 @@ Usage
    Example:
 
    ```python
-   services_infos = manager.init(cluster_config)
+   services_infos = manager.launch(cluster_config)
    ```
 
 5. **Manage the Massa Cluster:**
