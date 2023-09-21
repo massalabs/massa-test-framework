@@ -292,6 +292,7 @@ class KubernetesManager:
         container = client.V1Container(
             name=pods_config.name,
             image=pods_config.docker_image,
+            image_pull_policy="Always",
             ports=container_ports,
             env=self.create_env_variables(pods_config.env_variables),
         )
@@ -327,7 +328,7 @@ class KubernetesManager:
             metadata=client.V1ObjectMeta(name=config.name),
             spec=client.V1ServiceSpec(
                 type="NodePort",
-                selector={"app": config.name},
+                selector={"app": config.pod_config.name},
                 ports=ports,
                 external_i_ps=config.external_ips,
             ),

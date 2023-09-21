@@ -64,6 +64,8 @@ class MassaClusterConfig:
     namespace: str = "massa-simulator"
     nodes_number: int = 3
     external_ips: list[str] = field(default_factory=list)
+    username: str = "simulator"
+    password: str = field(default="")
     authorized_keys: str = field(default="")
     startup_pods_timeout: int = 3
     startup_services_timeout: int = 3
@@ -71,8 +73,10 @@ class MassaClusterConfig:
     def __post_init__(self):
         if not self.external_ips:
             raise ValueError("external_ips is required")
-        if not self.authorized_keys:
-            raise ValueError("authorized_keys is required")
+        if not self.password and not self.authorized_keys:
+            raise ValueError(
+                "Either password or authorized_keys is required, but not both"
+            )
 
 
 class MassaClusterManager:
@@ -83,7 +87,11 @@ class MassaClusterManager:
     def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
         docker_image = "aoudiamoncef/ubuntu-sshd"
-        env_variables = {"AUTHORIZED_KEYS": cluster_config.authorized_keys}
+        env_variables = {
+            "SSH_USERNAME": cluster_config.username,
+            "PASSWORD": cluster_config.password,
+            "AUTHORIZED_KEYS": cluster_config.authorized_keys,
+        }
 
         self.manager.create_namespace(cluster_config.namespace)
 
