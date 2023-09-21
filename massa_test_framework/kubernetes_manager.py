@@ -102,7 +102,9 @@ Example:
         manager.remove_namespace(namespace)
 """
 
+import base64
 from dataclasses import dataclass
+import os
 from typing import Optional
 from kubernetes import client, config
 
@@ -117,7 +119,7 @@ class PodConfig:
         docker_image (str): The Docker image to be used for the container.
         name (str): The name of the pod.
         opened_ports (list[int]): A list of port numbers to be opened in the container.
-        env_variables (dict): Envirement variables to be added to the pod's environment.
+        env_variables (list): Envirement variables to be added to the pod's environment.
     """
 
     namespace: str
@@ -125,7 +127,7 @@ class PodConfig:
     docker_image: str
     name: str
     opened_ports: list[int]
-    env_variables: dict
+    env_variables: list
 
 
 @dataclass
@@ -294,7 +296,7 @@ class KubernetesManager:
             image=pods_config.docker_image,
             image_pull_policy="Always",
             ports=container_ports,
-            env=self.create_env_variables(pods_config.env_variables),
+            env=pods_config.env_variables,
         )
 
         pod = client.V1Pod(
@@ -336,6 +338,50 @@ class KubernetesManager:
 
         api_instance.create_namespaced_service(config.namespace, service)
 
+    # Function to create a secret
+    def create_secret(self, namespace: str, secret_name: str, data: dict):
+        # Create a Kubernetes client
+        api_client = client.CoreV1Api()
+
+        # Base64 encode the data
+        encoded_data = {
+            key: base64.b64encode(value.encode("utf-8")).decode("utf-8")
+            for key, value in data.items()
+        }
+
+        # Create the Secret object
+        secret = client.V1Secret(
+            metadata=client.V1ObjectMeta(name=secret_name),
+            type="Opaque",
+            data=encoded_data,
+        )
+
+        # Create the Secret in Kubernetes@
+        api_client.create_namespaced_secret(namespace=namespace, body=secret)
+
+    def create_secret_env_variables(self, secret_name, secret_data_map):
+        # Create a list to store environment variables
+        env_variables = []
+        # Iterate through the secret_data_map and create V1EnvVar objects
+        for env_name, _ in secret_data_map.items():
+            env_var = client.V1EnvVar(
+                name=env_name,
+                value_from=client.V1EnvVarSource(
+                    secret_key_ref=client.V1SecretKeySelector(
+                        name=secret_name,
+                        key=env_name,  # The key in the secret to reference
+                    )
+                ),
+            )
+            env_variables.append(env_var)
+
+        # Set the environment variables in the current process
+        for env_var in env_variables:
+            os.environ[env_var.name] = env_var.value_from.secret_key_ref.key
+
+        return env_variables
+
+    # Function to get the informations of a pod
     def get_pods_info(self, namespace: str):
         """
         Get information about pods in a Kubernetes namespace.

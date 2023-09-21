@@ -59,7 +59,9 @@ class CompileOpts:
             "initial_peers.json": Path("massa-node/base_config/initial_peers.json"),
             "initial_rolls.json": Path("massa-node/base_config/initial_rolls.json"),
             # "initial_vesting.json": Path("massa-node/base_config/initial_vesting.json"),
-            "deferred_credits.json": Path("massa-node/base_config/deferred_credits.json"),
+            "deferred_credits.json": Path(
+                "massa-node/base_config/deferred_credits.json"
+            ),
             "bootstrap_whitelist.json": Path(
                 "massa-node/base_config/bootstrap_whitelist.json"
             ),

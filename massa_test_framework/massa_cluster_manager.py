@@ -35,8 +35,10 @@ Example:
         print(f"Namespace {cluster_config.namespace} terminated.")
 """
 
+import os
 import time
 from typing import Optional
+
 from .kubernetes_manager import (
     KubernetesManager,
     PodConfig,
@@ -44,6 +46,7 @@ from .kubernetes_manager import (
     ServiceConfig,
     ServicePortConfig,
 )
+
 from dataclasses import dataclass, field
 
 
@@ -57,18 +60,30 @@ class MassaClusterConfig:
         nodes_number (int): The number of nodes in the cluster.
         external_ips (list[str]): A list of external IP addresses.
         authorized_keys (str): The authorized SSH keys.
+        existing_secret (str): The name of an existing secret to use.
         startup_pods_timeout (int): The timeout for pod startup (default is 3 seconds).
         startup_services_timeout (int): The timeout for service startup (default is 3 seconds).
     """
 
-    namespace: str = "massa-simulator"
-    nodes_number: int = 3
-    external_ips: list[str] = field(default_factory=list)
-    username: str = "simulator"
-    password: str = field(default="")
-    authorized_keys: str = field(default="")
-    startup_pods_timeout: int = 3
-    startup_services_timeout: int = 3
+    namespace: str = os.environ.get("MASSA_TEST_FRAMEWORK_NAMESPACE", "massa-simulator")
+    nodes_number: int = int(os.environ.get("MASSA_TEST_FRAMEWORK_NODES_NUMBER", "3"))
+    external_ips: list[str] = field(
+        default_factory=lambda: os.environ.get(
+            "MASSA_TEST_FRAMEWORK_EXTERNAL_IPS", ""
+        ).split(",")
+    )
+    username: str = os.environ.get("MASSA_TEST_FRAMEWORK_USERNAME", "simulator")
+    password: str = os.environ.get("MASSA_TEST_FRAMEWORK_PASSWORD", "")
+    authorized_keys: str = os.environ.get("MASSA_TEST_FRAMEWORK_AUTHORIZED_KEYS", "")
+    existing_secret: str = os.environ.get(
+        "MASSA_TEST_FRAMEWORK_EXISTING_SECRET", "massa-credentials"
+    )
+    startup_pods_timeout: int = int(
+        os.environ.get("MASSA_TEST_FRAMEWORK_STARTUP_PODS_TIMEOUT", "3")
+    )
+    startup_services_timeout: int = int(
+        os.environ.get("MASSA_TEST_FRAMEWORK_STARTUP_SERVICES_TIMEOUT", "3")
+    )
 
     def __post_init__(self):
         if not self.external_ips:
@@ -87,13 +102,22 @@ class MassaClusterManager:
     def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
         docker_image = "aoudiamoncef/ubuntu-sshd"
+
+        self.manager.create_namespace(cluster_config.namespace)
+
         env_variables = {
             "SSH_USERNAME": cluster_config.username,
             "PASSWORD": cluster_config.password,
             "AUTHORIZED_KEYS": cluster_config.authorized_keys,
         }
 
-        self.manager.create_namespace(cluster_config.namespace)
+        self.manager.create_secret(
+            cluster_config.namespace, cluster_config.existing_secret, env_variables
+        )
+
+        secret_env_variables = self.manager.create_secret_env_variables(
+            cluster_config.existing_secret, env_variables
+        )
 
         # Create and start all pods
         pod_configs = []
@@ -104,7 +128,7 @@ class MassaClusterManager:
                 docker_image,
                 f"massa-node-{node_index}-pod",
                 opened_ports,
-                env_variables,
+                secret_env_variables,
             )
             self.manager.create_pod(pod_config)
             pod_configs.append(pod_config)

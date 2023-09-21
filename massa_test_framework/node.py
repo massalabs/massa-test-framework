@@ -19,9 +19,8 @@ from massa_proto_python.massa.api.v1 import (
     PublicServiceStub,
     PrivateServiceStub,
     GetStatusRequest,
-    GetStatusResponse
+    GetStatusResponse,
 )
-
 
 
 from massa_test_framework.massa_jsonrpc_api import AddressInfo
@@ -78,7 +77,12 @@ class Node:
             pub_grpc_port = urlparse("http://" + cfg["grpc"]["public"]["bind"]).port
             priv_grpc_port = urlparse("http://" + cfg["grpc"]["private"]["bind"]).port
 
-            if not pub_api_port or not priv_api_port or not pub_grpc_port or not priv_grpc_port:
+            if (
+                not pub_api_port
+                or not priv_api_port
+                or not pub_grpc_port
+                or not priv_grpc_port
+            ):
                 raise RuntimeError("Could not get api & grpc port from config")
 
             self.pub_api2 = massa_jsonrpc_api.Api2(
@@ -384,7 +388,7 @@ class Node:
         return result
 
     async def _private_grpc_call(
-            self, host: str, port: int, function_name: str, request: betterproto.Message
+        self, host: str, port: int, function_name: str, request: betterproto.Message
     ) -> betterproto.Message:
         # Note: asyncio.run will create a new event loop - channel must be created in this event loop
         #       that's why we need to have everything in this 'generic' function
@@ -399,22 +403,27 @@ class Node:
     def get_version(self):
         request = GetStatusRequest()
         get_status_response: GetStatusResponse = asyncio.run(
-            self._public_grpc_call(self.grpc_host, self.pub_grpc_port, "get_status", request)
+            self._public_grpc_call(
+                self.grpc_host, self.pub_grpc_port, "get_status", request
+            )
         )
         return get_status_response.status.version
 
     def get_status_grpc(self):
         request = GetStatusRequest()
         get_status_response: GetStatusResponse = asyncio.run(
-            self._public_grpc_call(self.grpc_host, self.pub_grpc_port, "get_status", request)
+            self._public_grpc_call(
+                self.grpc_host, self.pub_grpc_port, "get_status", request
+            )
         )
         return get_status_response
-
 
     def get_mip_status(self) -> GetMipStatusResponse:
         request = GetMipStatusRequest()
         get_mip_status_response: GetMipStatusResponse = asyncio.run(
-            self._private_grpc_call(self.grpc_host, self.priv_grpc_port, "get_mip_status", request)
+            self._private_grpc_call(
+                self.grpc_host, self.priv_grpc_port, "get_mip_status", request
+            )
         )
         return get_mip_status_response
 
