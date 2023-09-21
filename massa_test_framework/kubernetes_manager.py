@@ -103,6 +103,7 @@ Example:
 """
 
 from dataclasses import dataclass
+from typing import Optional
 from kubernetes import client, config
 
 
@@ -218,7 +219,7 @@ class KubernetesManager:
     """
 
     # Load Kubernetes configuration
-    def __init__(self, config_file=None):
+    def __init__(self, config_file: Optional[str] = None):
         """
         Initialize a KubernetesManager object.
 
@@ -232,7 +233,7 @@ class KubernetesManager:
             config.load_incluster_config()
 
     # Function to create a namespace
-    def create_namespace(self, namespace):
+    def create_namespace(self, namespace: str):
         """
         Create a Kubernetes namespace if it does not exist.
 
@@ -246,7 +247,7 @@ class KubernetesManager:
         api_instance.create_namespace(body)
 
     # Function that creates envirement variables
-    def create_env_variables(self, env_vars_map):
+    def create_env_variables(self, env_vars_map: dict):
         """
         Create a list of Kubernetes environment variables from a dictionary.
 
@@ -334,7 +335,7 @@ class KubernetesManager:
 
         api_instance.create_namespaced_service(config.namespace, service)
 
-    def get_pods_info(self, namespace):
+    def get_pods_info(self, namespace: str):
         """
         Get information about pods in a Kubernetes namespace.
 
@@ -373,7 +374,7 @@ class KubernetesManager:
         return pods_info
 
     # Function to get the informations of a service
-    def get_services_info(self, namespace):
+    def get_services_info(self, namespace: str):
         """
         Get information about services in a Kubernetes namespace.
 
@@ -408,8 +409,37 @@ class KubernetesManager:
 
         return services_info
 
+    # Function to get the status of a namespace
+    def get_namespace_status(self, namespace: str):
+        """
+        Get the status of a Kubernetes namespace.
+
+        Args:
+            namespace_name (str): The name of the namespace to check.
+
+        Returns:
+            str: The status of the namespace.
+                Returns None if the namespace does not exist.
+        """
+        # Create an instance of the CoreV1Api
+        api_instance = client.CoreV1Api()
+
+        try:
+            # Attempt to read the namespace
+            namespace_info = api_instance.read_namespace(namespace)
+
+            # Get the phase/status of the namespace
+            namespace_status = namespace_info.status
+
+            return namespace_status
+        except client.rest.ApiException as e:
+            if e.status == 404:
+                return None
+            else:
+                raise
+
     # Function to remove a set of services
-    def remove_services(self, namespace, names=None):
+    def remove_services(self, namespace: str, names: Optional[list[str]] = None):
         """
         Remove services from a Kubernetes namespace.
 
@@ -429,7 +459,7 @@ class KubernetesManager:
                 api_instance.delete_namespaced_service(pod.metadata.name, namespace)
 
     # Function to remove a namespace
-    def remove_namespace(self, namespace):
+    def remove_namespace(self, namespace: str):
         """
         Remove a Kubernetes namespace.
 

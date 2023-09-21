@@ -124,6 +124,21 @@ class MassaClusterManager:
         return self.manager.get_services_info(cluster_config.namespace)
 
     # Function to terminate a Massa cluster
-    def terminate(self, namespace: str, terminating_timeout: int = 30):
+    def terminate(
+        self, namespace: str, terminating_timeout: int = 60, waiting_interval: int = 5
+    ):
         self.manager.remove_namespace(namespace)
-        time.sleep(terminating_timeout)
+        start_time = time.time()
+
+        while True:
+            namespace_status = self.manager.get_namespace_status(
+                namespace
+            )  # Pass the namespace as an argument here
+
+            if namespace_status is None or namespace_status.phase != "Terminating":
+                break
+
+            if time.time() - start_time >= terminating_timeout:
+                break
+
+            time.sleep(waiting_interval)
