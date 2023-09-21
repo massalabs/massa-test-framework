@@ -13,6 +13,8 @@ Package massa_test_framework doc
    about_framework
    quickstart
    tips_for_dev
+   kubernetes_manager
+   massa_cluster_manager
 
 .. toctree::
    :maxdepth: 2

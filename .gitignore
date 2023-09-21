@@ -5,7 +5,10 @@ __pycache__
 venv
 venv*
 venv_*
-
+bin
+cd
+lib
+pyvenv.cfg
 
 # Python packaging
 dist

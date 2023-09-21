@@ -19,7 +19,6 @@ class PatchConstant:
     constant_file: Optional[Path]
 
     def apply(self, root=Path, strip: int = 0, fuzz: bool = False):
-
         # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 1000;
         # -->
         # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 10;
@@ -29,7 +28,7 @@ class PatchConstant:
             content_sub = re.sub(
                 f"(pub )?const {self.constant_name}: (\w+) = (\w+);",
                 f"\g<1>const {self.constant_name}: \g<2> = {self.new_value};",
-                content
+                content,
             )
             fp.seek(0)
             fp.truncate(0)
@@ -92,11 +91,11 @@ class CompileUnit:
 
     @staticmethod
     def from_compile_unit(cu: "CompileUnit", repo_sync: bool = False) -> "CompileUnit":
-
         """Create a new CompileUnit from another one
 
         Set repo_sync to True in order to clone from folder thus having two identical repo.
-        Can be useful if you clone from a repo using a branch and someone push some changes between the 2 clones.
+        Can be useful if you clone from a repo using a branch and someone push
+        some changes between the 2 clones.
 
         Args:
             cu: the original compile unit object
@@ -174,7 +173,7 @@ class CompileUnit:
         self._repo = Path(tmp_folder)
 
     def add_patch(self, patch_name: str, patch: bytes | Path | PatchConstant) -> None:
-        """ Add patch to apply after cloning
+        """Add patch to apply after cloning
 
         Args:
             patch_name: a meaningful name or description
@@ -186,8 +185,14 @@ class CompileUnit:
 
         self._patches[patch_name] = patch
 
-    def add_patch_constant(self, constant_name: str, new_value: str, constant_type: Optional[str] = None, constant_file: Optional[Path] = "massa-models/src/config/constants.rs"):
-        """ Add a patch updating a constant value in a rust file
+    def add_patch_constant(
+        self,
+        constant_name: str,
+        new_value: str,
+        constant_type: Optional[str] = None,
+        constant_file: Optional[Path] = "massa-models/src/config/constants.rs",
+    ):
+        """Add a patch updating a constant value in a rust file
 
         Args:
             constant_name: const to update
@@ -195,7 +200,9 @@ class CompileUnit:
             constant_type: optional const type in rust file
             constant_file: optional path
         """
-        self._patches[f"patch_{constant_name}_to_{new_value}"] = PatchConstant(constant_name, new_value, constant_type, constant_file)
+        self._patches[f"patch_{constant_name}_to_{new_value}"] = PatchConstant(
+            constant_name, new_value, constant_type, constant_file
+        )
 
     @property
     def repo(self):

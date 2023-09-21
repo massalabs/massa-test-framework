@@ -35,29 +35,31 @@ with node1.start():
 
 ## Setup
 
-    python3 -m venv venv_dev
+- Create a virtualenv:
+    `python3 -m venv venv_dev`
+
+- Install dev requirements:
+    `venv_dev/bin/python -m pip install -r requirements-dev.txt`
 
 ## Tools
 
-Formatter: [black](https://github.com/psf/black)
-     
-    venv_dev/bin/black massa_test_framework
+- Formatter [black](https://github.com/psf/black):
+    `venv_dev/bin/black massa_test_framework`
 
-Typing: [mypy](https://www.mypy-lang.org/)
-     
-    venv_dev/bin/mypy massa_test_framework
+- Typing [mypy](https://www.mypy-lang.org/): 
+    `venv_dev/bin/mypy massa_test_framework`
 
-Linter: [ruff](https://github.com/astral-sh/ruff)
+- Linter [ruff](https://github.com/astral-sh/ruff):
+    `venv_dev/bin/ruff check massa_test_framework`
 
-    venv_dev/bin/ruff check massa_test_framework
+- Doc [Sphinx](https://www.sphinx-doc.org):
+    `cd doc && make html`
 
-Doc: [Sphinx]()
+**Note:**
 
-    cd doc && make html
+- Use Napoleon syntax when writing docstrings: [Napoleon Documentation](https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html)
+  - For a full syntax example, refer to the [Example Google Docstring](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google).
 
-Note:
-* Use Napoleon syntax when writing docstrings: https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html
-  * [Full syntax example](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html#example-google)
 
 ## Generating massa_grpc
 

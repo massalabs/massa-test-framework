@@ -49,7 +49,6 @@ class Node:
 
         """
 
-
         self.server = server
         self.compile_unit = compile_unit
 
@@ -103,7 +102,6 @@ class Node:
             self.server.mkdir(Path(f))
 
         for filename, to_install in self._to_install.items():
-
             src = repo / to_install
 
             if filename == "massa_node":
@@ -158,12 +156,16 @@ class Node:
 
     @contextmanager
     def start(
-        self, env: Optional[Dict[str, str]] = None, args: Optional[List[str]] = None, stdout=sys.stdout, stderr=sys.stderr
+        self,
+        env: Optional[Dict[str, str]] = None,
+        args: Optional[List[str]] = None,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     ):
         """Start a node
 
         Start a Massa node (as a context manager)
-        
+
         Args:
             env:
             args: additional node arguments (e.g. ["--restart-from-snapshot-at-period", "10"])
@@ -194,6 +196,7 @@ class Node:
                 #       otherwise it will wait forever
                 #       so first print traceback then stop the process
                 import traceback
+
                 print(traceback.format_exc())
                 self.stop(p)
                 # Re Raise exception so test will be marked as failed
@@ -269,8 +272,7 @@ class Node:
 
     # @contextmanager
     def edit_ledger(self):
-        """Edit initial ledger
-        """
+        """Edit initial ledger"""
 
         return self.edit_json(self.config_files["initial_ledger.json"])
 
@@ -445,7 +447,9 @@ class Node:
             else:
                 done = True
 
-    def wait_with_cb(self, cb: Callable[..., bool], timeout=20, sleep_duration=0.5) -> None:
+    def wait_with_cb(
+        self, cb: Callable[..., bool], timeout=20, sleep_duration=0.5
+    ) -> None:
         """Wait for node with a custom callback function
 
         Args:
