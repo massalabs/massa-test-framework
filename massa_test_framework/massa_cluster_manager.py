@@ -37,7 +37,7 @@ Example:
 
 import time
 from typing import Optional
-from kubernetes_manager import (
+from .kubernetes_manager import (
     KubernetesManager,
     PodConfig,
     ServiceInfo,
