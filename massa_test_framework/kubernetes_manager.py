@@ -111,7 +111,7 @@ import base64
 from dataclasses import dataclass
 import os
 from typing import Optional
-from kubernetes import client, config
+from kubernetes import client, config as kube_config
 
 
 @dataclass
@@ -298,9 +298,9 @@ class KubernetesManager:
             If None, in-cluster config is used.
         """
         if config_file:
-            config.load_kube_config(config_file)
+            kube_config.load_kube_config(config_file)
         else:
-            config.load_incluster_config()
+            kube_config.load_incluster_config()
 
     # Function to create a namespace
     def create_namespace(self, namespace: str):
