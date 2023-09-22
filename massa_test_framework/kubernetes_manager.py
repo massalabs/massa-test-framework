@@ -23,39 +23,55 @@ Example:
     from kubernetes_manager import KubernetesManager, PodConfig, ServiceConfig, ServicePortConfig
 
     if __name__ == "__main__":
-        # Create a KubernetesManager instance
+         # Create a KubernetesManager instance
         manager = KubernetesManager("PATH_TO/kubeconfig.yml")
 
         # Example usage:
         namespace = "massa-simulator"
-        opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245] # SSH PORT 22 + MASSA PORTS
-        external_ips = ["10.4.3.2"]
+        ssh_existing_secret = "massa-credentials"
+        opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
+        prefix = "m"
+        suffix = "p"
+        external_i_ps = [""10.4.3.2""]
         docker_image = "aoudiamoncef/ubuntu-sshd"  # Specify your Docker image
-        authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
-        env_vars_map = {
-            "AUTHORIZED_KEYS": authorized_keys,
+        ssh_authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
+        env_variables = {
+            "AUTHORIZED_KEYS": ssh_authorized_keys,
         }
 
-        node_1_pod_config = PodConfig(namespace, "massa-node-1-container",
-          docker_image, "massa-node-1-pod", opened_ports, env_vars_map)
-        node_2_pod_config = PodConfig(namespace, "massa-node-2-container",
-          docker_image, "massa-node-2-pod", opened_ports, env_vars_map)
-        node_3_pod_config = PodConfig(namespace, "massa-node-3-container", 
-        docker_image, "massa-node-3-pod", opened_ports, env_vars_map)
+        # Create a namespace
+        manager.create_namespace(namespace)
+        
+        # Create a secret
+        manager.create_secret(
+            namespace, ssh_existing_secret, env_variables
+        )
 
-        node_1_service_port_config = ServicePortConfig(20001, 22, 30001)
-        node_2_service_port_config = ServicePortConfig(20002, 22, 30002)
-        node_3_service_port_config = ServicePortConfig(20003, 22, 30003)
+        # Create environment variables
+        secret_env_variables = manager.create_secret_env_variables(
+            ssh_existing_secret, env_variables
+        )
+
+        # Create pod port configurations
+        pod_ports_config = manager.create_pod_port_configs(opened_ports, prefix, suffix)
+
+        node_1_pod_config = PodConfig(namespace, "massa-node-1-container",
+          docker_image, "massa-node-1-pod", pod_ports_config, secret_env_variables)
+        node_2_pod_config = PodConfig(namespace, "massa-node-2-container",
+          docker_image, "massa-node-2-pod", pod_ports_config, secret_env_variables)
+        node_3_pod_config = PodConfig(namespace, "massa-node-3-container", 
+        docker_image, "massa-node-3-pod", pod_ports_config, secret_env_variables)
+
+        node_1_service_ports_config = manager.create_service_port_configs(opened_ports, 1, prefix, suffix)
+        node_2_service_ports_config = manager.create_service_port_configs(opened_ports, 2, prefix, suffix)
+        node_3_service_ports_config = manager.create_service_port_configs(opened_ports, 3, prefix, suffix)
 
         node_1_service_config = ServiceConfig(namespace, node_1_pod_config, 
-        "massa-node-1-service", external_ips, [node_1_service_port_config])
+        "massa-node-1-service", external_i_ps, node_1_service_ports_config)
         node_2_service_config = ServiceConfig(namespace, node_2_pod_config, 
-        "massa-node-2-service", external_ips, [node_2_service_port_config])
+        "massa-node-2-service", external_i_ps, node_2_service_ports_config)
         node_3_service_config = ServiceConfig(namespace, node_3_pod_config, 
-        "massa-node-3-service", external_ips, [node_3_service_port_config])
-
-        # Create a namespace if it does not exist
-        manager.create_namespace(namespace)
+        "massa-node-3-service", external_i_ps, node_3_service_ports_config)
 
         # Start services with the specified Docker image and authorized keys
         manager.create_pod(node_1_pod_config)
@@ -67,15 +83,9 @@ Example:
 
         # Get the informations of the pods
         pods_info = manager.get_pods_info(namespace)
-        # Print the obtained information
-        for pod_info in pods_info:
-            print(f"Pod Name: {pod_info['name']}")
-            print(f"Status: {pod_info['status']}")
-            print("Container Ports:")
-            for container_port_info in pod_info['container_ports']:
-                print(f"Container Port: {container_port_info['container_port']}")
-                print(f"Protocol: {container_port_info['protocol']}")
-
+        print("Available Pods:")    
+        print(pods_info)
+   
         # Create NodePort services with specified node ports
         manager.create_service(node_1_service_config)
         manager.create_service(node_2_service_config)
@@ -86,18 +96,13 @@ Example:
 
         # Get the informations of the services
         services_info = manager.get_services_info(namespace)
-        print("Available Services:")
-        for service_info in services_info:
-            print(f"Service Name: {service_info['name']}")
-            print("Ports:")
-            for port_info in service_info['ports']:
-                print(f"  Port: {port_info['port']}, Target Port: {port_info['target_port']}, 
-                Node Port: {port_info['node_port']}")
-            print("\n")
+        print("Available Services:")    
+        print(services_info)
 
         # Wait for a moment before removing the namespace
         time.sleep(60)
 
+        print("Removing namespace...")
         # Remove the namespace
         manager.remove_namespace(namespace)
 """
@@ -110,6 +115,22 @@ from kubernetes import client, config
 
 
 @dataclass
+class PodPortConfig:
+    """
+    Configuration for Kubernetes Pod Port which is a configuration element
+    that defines the port number on which a Kubernetes Pod listens
+    for incoming traffic.
+
+    Attributes:
+        name (str): The name of the port.
+        container_port (int): The container_port number to expose.
+    """
+
+    name: str
+    container_port: int
+
+
+@dataclass
 class PodConfig:
     """Configuration for a Kubernetes Pod.
 
@@ -118,7 +139,7 @@ class PodConfig:
         container_name (str): The name of the container within the pod.
         docker_image (str): The Docker image to be used for the container.
         name (str): The name of the pod.
-        opened_ports (list[int]): A list of port numbers to be opened in the container.
+        opened_ports (list[PodPortConfig]): A list of ports to be opened in the container.
         env_variables (list): Envirement variables to be added to the pod's environment.
     """
 
@@ -126,7 +147,7 @@ class PodConfig:
     container_name: str
     docker_image: str
     name: str
-    opened_ports: list[int]
+    opened_ports: list[PodPortConfig]
     env_variables: list
 
 
@@ -139,11 +160,13 @@ class ServicePortConfig:
     to the Pods associated with the Service.
 
     Attributes:
+        name (str): The name of the port.
         port (int): The port number to expose.
         target_port (int): The port to forward traffic to within the pod.
         node_port (int): The node port for external access.
     """
 
+    name: str
     port: int
     target_port: int
     node_port: int
@@ -158,14 +181,14 @@ class ServiceConfig:
         namespace (str): The namespace in which the service will be created.
         pod_config (PodConfig): The PodConfig object associated with this service.
         name (str): The name of the service.
-        external_ips (list[str]): List of external IP addresses for the service.
+        external_i_ps (list[str]): List of external IP addresses for the service.
         service_ports (list of ServicePortConfig): List of ServicePortConfig objects.
     """
 
     namespace: str
     pod_config: PodConfig
     name: str
-    external_ips: list[str]
+    external_i_ps: list[str]
     service_ports: list[ServicePortConfig]
 
 
@@ -186,16 +209,55 @@ class DeployConfig:
 
 
 @dataclass
+class ContainerPortInfo:
+    """
+    Represents information about a container port.
+
+    Attributes:
+        name (str): The name of the container port.
+        container_port (int): The port number in the container.
+        protocol (str): The protocol used by the port (e.g., "TCP" or "UDP").
+    """
+
+    name: str
+    container_port: int
+    protocol: str
+
+
+@dataclass
+class PodInfo:
+    """
+    Represents information about a Kubernetes pod.
+
+    Attributes:
+        name (str): The name of the pod.
+        namespace (str): The namespace in which the pod is located.
+        status (str): The status of the pod (e.g., "Running", "Pending", etc.).
+        pod_i_ps (list[str]): The IP(s) address of the pod.
+        container_ports (list[ContainerPortInfo]): A list of ContainerPortInfo objects representing
+            the container ports of the pod.
+    """
+
+    name: str
+    namespace: str
+    status: str
+    pod_i_ps: list[str]
+    container_ports: list[ContainerPortInfo]
+
+
+@dataclass
 class PortInfo:
     """
     Data class representing information about a service port.
 
     Attributes:
+        name (str): The port name.
         port (int): The port number.
         target_port (int): The target port number.
         node_port (int): The node port number.
     """
 
+    name: str
     port: int
     target_port: int
     node_port: int
@@ -208,10 +270,16 @@ class ServiceInfo:
 
     Attributes:
         name (str): The name of the service.
+        namespace (str): The namespace in which the service is located.
+        cluster_i_ps (list[str]): A list of cluster IP addresses associated with the service.
+        external_i_ps (list[str]): A list of external IP addresses associated with the service.
         ports (list[PortInfo]): A list of PortInfo instances representing service ports.
     """
 
     name: str
+    namespace: str
+    cluster_i_ps: list[str]
+    external_i_ps: list[str]
     ports: list[PortInfo]
 
 
@@ -287,8 +355,10 @@ class KubernetesManager:
         api_instance = client.CoreV1Api()
 
         container_ports = [
-            client.V1ContainerPort(container_port=port)
-            for port in pods_config.opened_ports
+            client.V1ContainerPort(
+                name=port_config.name, container_port=port_config.container_port
+            )
+            for port_config in pods_config.opened_ports
         ]
 
         container = client.V1Container(
@@ -320,6 +390,7 @@ class KubernetesManager:
         ports = []
         for port_config in config.service_ports:
             service_port = client.V1ServicePort(
+                name=port_config.name,
                 port=port_config.port,
                 target_port=port_config.target_port,
                 node_port=port_config.node_port,
@@ -332,7 +403,7 @@ class KubernetesManager:
                 type="NodePort",
                 selector={"app": config.pod_config.name},
                 ports=ports,
-                external_i_ps=config.external_ips,
+                external_i_ps=config.external_i_ps,
             ),
         )
 
@@ -381,8 +452,61 @@ class KubernetesManager:
 
         return env_variables
 
-    # Function to get the informations of a pod
-    def get_pods_info(self, namespace: str):
+    # Create a set of pod port configurations
+    def create_pod_port_configs(
+        self, opened_ports: list[int], prefix: str, suffix: str
+    ) -> list[PodPortConfig]:
+        """
+        Create PodPortConfig instances from a list of opened_ports
+        with a given prefix and suffix for the name.
+
+        Args:
+            opened_ports (list[int]): A list of opened port numbers.
+            prefix (str): A prefix to add to the port names.
+            suffix (str): A suffix to add to the port names.
+
+        Returns:
+            list[PodPortConfig]: A list of PodPortConfig instances.
+        """
+        pod_port_configs = [
+            PodPortConfig(name=f"{prefix}-{port}-{suffix}", container_port=port)
+            for port in opened_ports
+        ]
+
+        return pod_port_configs
+
+    # Create a set of service port configurations
+    def create_service_port_configs(
+        self, opened_ports: list[int], node_index: int, prefix: str, suffix: str
+    ):
+        """
+        Create ServicePortConfig instances based on the opened_ports list.
+
+        Args:
+            opened_ports (list[int]): A list of opened port numbers.
+            node_index (int): The node index.
+            prefix (str): A prefix to add to the port names.
+            suffix (str): A suffix to add to the port names.
+
+        Returns:
+            list[ServicePortConfig]: A list of ServicePortConfig instances.
+        """
+        num_ports_per_node = len(opened_ports)
+        service_ports_config = []
+
+        for port_index, port in enumerate(opened_ports, start=1):
+            service_port_config = ServicePortConfig(
+                f"{prefix}-{port}-{suffix}",
+                20000 + (node_index * num_ports_per_node) + port_index,
+                port,
+                30000 + (node_index * num_ports_per_node) + port_index,
+            )
+            service_ports_config.append(service_port_config)
+
+        return service_ports_config
+
+    # Function to get the informations of pods
+    def get_pods_info(self, namespace: str) -> list[PodInfo]:
         """
         Get information about pods in a Kubernetes namespace.
 
@@ -390,7 +514,7 @@ class KubernetesManager:
             namespace (str): The namespace to query.
 
         Returns:
-            list: A list of dictionaries containing pod information.
+            list: A list of PodInfo objects containing pod information.
         """
         api_instance = client.CoreV1Api()
         pods_info = []
@@ -399,29 +523,32 @@ class KubernetesManager:
         pods = api_instance.list_namespaced_pod(namespace)
 
         for pod in pods.items:
-            pod_info = {
-                "name": pod.metadata.name,
-                "namespace": namespace,
-                "status": pod.status.phase,
-                "container_ports": [],
-            }
-
-            # Extract and add the container ports to the pod_info dictionary
+            container_ports = []
+            # Extract and add the container ports to the container_ports list
             for container in pod.spec.containers:
                 for port in container.ports:
-                    container_port_info = {
-                        "name": port.name,
-                        "container_port": port.container_port,
-                        "protocol": port.protocol,
-                    }
-                    pod_info["container_ports"].append(container_port_info)
+                    container_port_info = ContainerPortInfo(
+                        name=port.name,
+                        container_port=port.container_port,
+                        protocol=port.protocol,
+                    )
+                    container_ports.append(container_port_info)
+
+            # Create a PodInfo object for the pod
+            pod_info = PodInfo(
+                name=pod.metadata.name,
+                namespace=namespace,
+                status=pod.status.phase,
+                pod_i_ps=pod.status.pod_i_ps,
+                container_ports=container_ports,
+            )
 
             pods_info.append(pod_info)
 
         return pods_info
 
-    # Function to get the informations of a service
-    def get_services_info(self, namespace: str):
+    # Function to get the informations of services
+    def get_services_info(self, namespace: str) -> list[ServiceInfo]:
         """
         Get information about services in a Kubernetes namespace.
 
@@ -441,6 +568,7 @@ class KubernetesManager:
 
             for port in service.spec.ports:
                 port_info = PortInfo(
+                    name=port.name,
                     port=port.port,
                     target_port=port.target_port,
                     node_port=port.node_port,
@@ -449,6 +577,9 @@ class KubernetesManager:
 
             service_info = ServiceInfo(
                 name=service.metadata.name,
+                namespace=service.metadata.namespace,
+                cluster_i_ps=service.spec.cluster_i_ps,
+                external_i_ps=service.spec.external_i_ps,
                 ports=port_infos,
             )
 
