@@ -21,7 +21,7 @@ class LedgerEditor:
             "massa-ledger-editor": self.compile_unit.massa_ledger_editor,
         }
         self._to_install.update(self.compile_unit.config_files)
-        self._to_create = []
+        self._to_create: List[str] = []
 
         self.start_cmd = ["./massa-ledger-editor"]
         self.stop_cmd = ""
@@ -94,7 +94,7 @@ class LedgerEditor:
         print(f"{cmd=}")
         process = self.server.run(
             [cmd],
-            cwd=self.install_folder,
+            cwd=str(self.install_folder),
             env=env,
             stdout=stdout,
             stderr=stderr,

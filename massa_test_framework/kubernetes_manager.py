@@ -241,7 +241,7 @@ class PodInfo:
     name: str
     namespace: str
     status: str
-    pod_i_ps: list[str]
+    pod_ip: str
     container_ports: list[ContainerPortInfo]
 
 
@@ -539,7 +539,7 @@ class KubernetesManager:
                 name=pod.metadata.name,
                 namespace=namespace,
                 status=pod.status.phase,
-                pod_i_ps=pod.status.pod_i_ps,
+                pod_ip=pod.status.pod_ip,
                 container_ports=container_ports,
             )
 

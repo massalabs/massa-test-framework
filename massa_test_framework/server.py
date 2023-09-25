@@ -21,6 +21,15 @@ from massa_test_framework.remote import RemotePath
 
 
 @dataclass
+class MassaNodeOpts:
+    internal_ip: str = ""
+    jsonrpc_public_port: int = 0
+    jsonrpc_private_port: int = 0
+    grpc_public_port: int = 0
+    grpc_private_port: int = 0
+
+
+@dataclass
 class ServerOpts:
     local: bool = False
     name: str = ""
@@ -28,6 +37,10 @@ class ServerOpts:
     ssh_port: int = 22
     ssh_user: str = ""
     ssh_pwd: str = ""
+    # [Optional] port exposed by Massa node
+    # Note: in a k8s cluster, massa node ports are randomized so
+    #       here is a way to specify them (from querying k8s info)
+    massa: Optional[MassaNodeOpts] = None
 
 
 class ParamikoRemotePopen:

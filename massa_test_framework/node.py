@@ -26,7 +26,7 @@ from massa_proto_python.massa.api.v1 import (
 from massa_test_framework.massa_jsonrpc_api import AddressInfo
 from massa_test_framework.compile import CompileUnit, CompileOpts
 from massa_test_framework.remote import copy_file, RemotePath
-from massa_test_framework.server import Server
+from massa_test_framework.server import Server, MassaNodeOpts
 
 # third party
 import requests
@@ -85,17 +85,37 @@ class Node:
             ):
                 raise RuntimeError("Could not get api & grpc port from config")
 
-            self.pub_api2 = massa_jsonrpc_api.Api2(
-                "http://{}:{}".format(self.server.host, pub_api_port)
-            )
-            self.priv_api2 = massa_jsonrpc_api.Api2(
-                "http://{}:{}".format(self.server.host, priv_api_port)
-            )
-            self.grpc_host = self.server.host
-            self.pub_grpc_port = pub_grpc_port
-            self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
-            self.priv_grpc_port = priv_grpc_port
-            self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
+            if server.server_opts.massa:
+                massa_server_opts: MassaNodeOpts = server.server_opts.massa
+                self.pub_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(
+                        self.server.host, massa_server_opts.jsonrpc_public_port
+                    )
+                )
+                print("pub_api2 url:", self.pub_api2.url)
+                self.priv_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(
+                        self.server.host, massa_server_opts.jsonrpc_private_port
+                    )
+                )
+                self.grpc_host = self.server.host
+                self.pub_grpc_port = massa_server_opts.grpc_public_port
+                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
+                self.priv_grpc_port = massa_server_opts.grpc_private_port
+                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
+
+            else:
+                self.pub_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(self.server.host, pub_api_port)
+                )
+                self.priv_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(self.server.host, priv_api_port)
+                )
+                self.grpc_host = self.server.host
+                self.pub_grpc_port = pub_grpc_port
+                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
+                self.priv_grpc_port = priv_grpc_port
+                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
 
     def _install(self) -> Path | RemotePath:
         tmp_folder = self.server.mkdtemp(prefix="massa_")
@@ -322,6 +342,7 @@ class Node:
              the period as integer
         """
         res = self.get_status()
+        # print("res", res)
         return res["result"]["last_slot"]["period"]
 
     def get_addresses(self, addresses: List[str]) -> Dict[str, AddressInfo]:

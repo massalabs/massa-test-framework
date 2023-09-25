@@ -141,7 +141,7 @@ class MassaClusterManager:
         self.manager = KubernetesManager(kube_config_path)
 
     # Function to launch a Massa cluster
-    def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
+    def launch(self, cluster_config: MassaClusterConfig) -> list[LaunchInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
         prefix = "m"
         suffix = "p"
