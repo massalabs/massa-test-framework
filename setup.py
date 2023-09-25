@@ -22,7 +22,7 @@ setup(
         "varint==1.0.2",
         "ed25519==1.5",
         "patch-ng==1.17.4",
-        "massa-proto-python==0.0.1"
+        "massa-proto-python==0.0.1",
         "kubernetes==27.2.0",
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'

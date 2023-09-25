@@ -135,7 +135,10 @@ class SshServer:
         # TODO: security warning? is this relevant here?
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.client.connect(
-            self.opts.ssh_host, self.opts.ssh_port, username=self.opts.ssh_user, password=self.opts.ssh_pwd
+            self.opts.ssh_host,
+            self.opts.ssh_port,
+            username=self.opts.ssh_user,
+            password=self.opts.ssh_pwd,
         )
         # TODO: rename to sftp_client
         self.ftp_client: SFTPClient = self.client.open_sftp()
