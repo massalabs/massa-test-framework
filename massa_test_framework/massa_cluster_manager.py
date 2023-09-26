@@ -206,8 +206,12 @@ class MassaClusterManager:
         # Assuming you have already imported the LaunchInfo class
 
         # Get pod and service information
-        pods_infos = self.manager.get_pods_info(cluster_config.namespace)
-        services_infos = self.manager.get_services_info(cluster_config.namespace)
+        pods_infos = sorted(
+            self.manager.get_pods_info(cluster_config.namespace),
+            key=lambda p: p.name)
+        services_infos = sorted(
+            self.manager.get_services_info(cluster_config.namespace),
+            key=lambda s: s.name)
 
         # Create LaunchInfo objects for each pair of pod and service information
         launch_infos = [

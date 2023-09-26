@@ -388,6 +388,12 @@ class Node:
         print("node_peers_whitelist", res, type(res))
         return res
 
+    def node_bootstrap_whitelist(self):
+        """Not implemented in Massa node"""
+        res = self.priv_api2.node_bootstrap_whitelist()
+        print("node_bootstrap_whitelist", res, type(res))
+        return res
+
     def get_stakers(self):
         res = self.pub_api2.get_stakers()
         print("get_stakers", res, type(res))

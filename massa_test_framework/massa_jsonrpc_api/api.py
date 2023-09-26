@@ -88,6 +88,19 @@ class JsonApi:
         return headers, payload
 
     @staticmethod
+    def node_bootstrap_whitelist():
+        headers = {"Content-type": "application/json"}
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "node_bootstrap_whitelist",
+                "id": 0,
+                "params": [],
+            }
+        )
+        return headers, payload
+
+    @staticmethod
     def get_stakers():
         headers = {"Content-type": "application/json"}
         payload = json.dumps(
