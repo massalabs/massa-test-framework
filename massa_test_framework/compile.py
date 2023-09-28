@@ -78,6 +78,7 @@ class CompileOpts:
 
 
 class CompileUnit:
+
     def __init__(self, server: Server, compile_opts: CompileOpts):
         """ Init a CompileUnit object
 
@@ -89,7 +90,8 @@ class CompileUnit:
         self.compile_opts = compile_opts
 
         self._repo = ""
-        self._patches: Dict[str, str | Path | PatchConstant] = {}
+        self._target = ""
+        self._patches: Dict[str, bytes | str | Path | PatchConstant] = {}
 
     @staticmethod
     def from_compile_unit(cu: "CompileUnit", repo_sync: bool = False) -> "CompileUnit":
@@ -156,23 +158,35 @@ class CompileUnit:
             res = patchset.apply(root=tmp_folder, fuzz=True)
             if not res:
                 raise RuntimeError(
-                    f"Could not apply patch {patch_name} ({patch}) to repo: {tmp_folder}"
+                    f"Could not apply patch {patch_name} ({patch!r}) to repo: {tmp_folder}"
                 )
             print("Done.")
 
-        build_cmd = [self.compile_opts.cargo_bin, "build"]
+        build_cmd_ = [self.compile_opts.cargo_bin, "build"]
         # print(self.compile_opts.build_opts)
-        build_cmd.extend(self.compile_opts.build_opts)
-        with self.server.run([" ".join(build_cmd)], cwd=str(tmp_folder)) as proc:
+        build_cmd_.extend(self.compile_opts.build_opts)
+        build_cmd = " ".join(build_cmd_)
+        print("Build cmd:", build_cmd)
+        with self.server.run([build_cmd], cwd=str(tmp_folder)) as proc:
             proc.wait()
             print("Done.")
 
         # print("return code", proc.returncode)
         if proc.returncode != 0:
-            # TODO: custom exception like CompilationError
+            # TODO: custom exception like CompilationError?
             raise RuntimeError("Could not build")
 
-        self._repo = Path(tmp_folder)
+        if '--target' in build_cmd:
+            # if --target is specified, path is like: target/{TARGET_NAME}/debug/[...]
+            rg_res = re.search("--target ([\w-]+)", build_cmd)
+            if not rg_res:
+                raise RuntimeError("Cannot match arch from --target")
+            self._repo = Path(tmp_folder)
+            self._target = rg_res.group(1)
+        else:
+            # No --target, path is like: target/debug/[...]
+            self._repo = Path(tmp_folder)
+            self._target = ""
 
     def add_patch(self, patch_name: str, patch: bytes | Path | PatchConstant) -> None:
         """Add patch to apply after cloning
@@ -192,7 +206,7 @@ class CompileUnit:
         constant_name: str,
         new_value: str,
         constant_type: Optional[str] = None,
-        constant_file: Optional[Path] = "massa-models/src/config/constants.rs",
+        constant_file: Optional[Path] = Path("massa-models/src/config/constants.rs"),
     ):
         """Add a patch updating a constant value in a rust file
 
@@ -223,17 +237,26 @@ class CompileUnit:
     @property
     def massa_node(self) -> Path:
         """Relative path (relative to compilation folder) to massa node binary"""
-        return Path(f"target/{self.build_kind}/massa-node")
+        if self._target:
+            return Path(f"target/{self._target}/{self.build_kind}/massa-node")
+        else:
+            return Path(f"target/{self.build_kind}/massa-node")
 
     @property
     def massa_client(self) -> Path:
         """Relative path (relative to compilation folder) to massa client binary"""
-        return Path(f"target/{self.build_kind}/massa-client")
+        if self._target:
+            return Path(f"target/{self._target}/{self.build_kind}/massa-client")
+        else:
+            return Path(f"target/{self.build_kind}/massa-client")
 
     @property
     def massa_ledger_editor(self) -> Path:
         # TODO: can we factorize this with massa_node & massa_client?
-        return Path(f"target/{self.build_kind}/massa-ledger-editor")
+        if self._target:
+            return Path(f"target/{self._target}/{self.build_kind}/massa-ledger-editor")
+        else:
+            return Path(f"target/{self.build_kind}/massa-ledger-editor")
 
     @property
     def config_files(self) -> Dict[str, Path]:

@@ -141,7 +141,7 @@ class MassaClusterManager:
         self.manager = KubernetesManager(kube_config_path)
 
     # Function to launch a Massa cluster
-    def launch(self, cluster_config: MassaClusterConfig) -> list[ServiceInfo]:
+    def launch(self, cluster_config: MassaClusterConfig) -> list[LaunchInfo]:
         opened_ports = [22, 33034, 33035, 33036, 33037, 33038, 31244, 31245]
         prefix = "m"
         suffix = "p"
@@ -206,8 +206,13 @@ class MassaClusterManager:
         # Assuming you have already imported the LaunchInfo class
 
         # Get pod and service information
-        pods_infos = self.manager.get_pods_info(cluster_config.namespace)
-        services_infos = self.manager.get_services_info(cluster_config.namespace)
+        pods_infos = sorted(
+            self.manager.get_pods_info(cluster_config.namespace), key=lambda p: p.name
+        )
+        services_infos = sorted(
+            self.manager.get_services_info(cluster_config.namespace),
+            key=lambda s: s.name,
+        )
 
         # Create LaunchInfo objects for each pair of pod and service information
         launch_infos = [

@@ -4,5 +4,7 @@ types-paramiko==3.2
 types-requests==2.31
 ruff
 sphinx
+sphinx-autodoc-typehints
 myst-parser
 kubernetes-stubs
+massa-proto-python

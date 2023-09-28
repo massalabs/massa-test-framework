@@ -13,11 +13,11 @@ class KeyPair:
         self.secret_key = secret_key
         self.public_key = public_key
 
-    def random():
+    def random(self):
         signing_key, verifying_key = ed25519.create_keypair()
         return KeyPair(secret_key=signing_key, public_key=verifying_key)
 
-    def from_secret_massa_encoded(private: str):
+    def from_secret_massa_encoded(self, private: str):
         # Strip identifier
         private = private[1:]
         # Decode base58
@@ -25,9 +25,9 @@ class KeyPair:
         # Decode varint
         # version = varint.decode_bytes(private)
         # Get rest (for the moment versions are little)
-        secret_key = private[1:]
+        secret_key_ = private[1:]
         # decode privkey
-        secret_key = ed25519.keys.SigningKey(secret_key)
+        secret_key = ed25519.keys.SigningKey(secret_key_)
         public_key = secret_key.get_verifying_key()
         return KeyPair(secret_key=secret_key, public_key=public_key)
 

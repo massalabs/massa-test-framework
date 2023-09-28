@@ -21,6 +21,15 @@ from massa_test_framework.remote import RemotePath
 
 
 @dataclass
+class MassaNodeOpts:
+    internal_ip: str = ""
+    jsonrpc_public_port: int = 0
+    jsonrpc_private_port: int = 0
+    grpc_public_port: int = 0
+    grpc_private_port: int = 0
+
+
+@dataclass
 class ServerOpts:
     local: bool = False
     name: str = ""
@@ -28,6 +37,10 @@ class ServerOpts:
     ssh_port: int = 22
     ssh_user: str = ""
     ssh_pwd: str = ""
+    # [Optional] port exposed by Massa node
+    # Note: in a k8s cluster, massa node ports are randomized so
+    #       here is a way to specify them (from querying k8s info)
+    massa: Optional[MassaNodeOpts] = None
 
 
 class ParamikoRemotePopen:
@@ -188,22 +201,22 @@ class SshServer:
         stdout=sys.stdout,
         stderr=sys.stderr,
     ):
-        cmd = cmd[0]
+        cmd_: str = cmd[0]
 
         if env:
             # Note: Channel.set_environment_variable is most of the time restricted so not used here
             cmd_prefix = []
             for env_var, env_value in env.items():
                 cmd_prefix.append(f"{env_var}='{env_value}'")
-            cmd = " ".join(cmd_prefix) + " " + cmd
+            cmd_ = " ".join(cmd_prefix) + " " + cmd_
 
         if cwd:
             # Emulate cwd
-            cmd = f"cd {cwd} && " + cmd
+            cmd_ = f"cd {cwd} && " + cmd_
         transport = self.client.get_transport()
         proc = ParamikoRemotePopen(transport.open_session())
-        print("[SshServer] Run", cmd, "- env:", env)
-        return proc.run(cmd, stdout=stdout)
+        print("[SshServer] Run", cmd_, "- env:", env)
+        return proc.run(cmd_, stdout=stdout)
         # return proc
 
 
@@ -216,7 +229,7 @@ class Server:
         else:
             self.server = SshServer(server_opts)
 
-        self._cleanup = []
+        self._cleanup: List[Path | RemotePath] = []
 
     def send_file(self, src: Path, dst: Path, file_permission: bool = True):
         if self.server_opts.local:
@@ -265,9 +278,9 @@ class Server:
 
     def remove(self, path: str) -> None:
         if self.server_opts.local:
-            return os.unlink(path)
+            os.unlink(path)
         else:
-            return self.server.remove(str(path))
+            self.server.remove(str(path))
 
     def stop(self, process):
         if self.server_opts.local:
