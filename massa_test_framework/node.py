@@ -23,7 +23,7 @@ from massa_proto_python.massa.api.v1 import (
 )
 
 
-from massa_test_framework.massa_jsonrpc_api import AddressInfo
+from massa_test_framework.massa_jsonrpc_api import AddressInfo, Api2
 from massa_test_framework.compile import CompileUnit, CompileOpts
 from massa_test_framework.remote import copy_file, RemotePath
 from massa_test_framework.server import Server, MassaNodeOpts
@@ -105,7 +105,7 @@ class Node:
                 self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
 
             else:
-                self.pub_api2 = massa_jsonrpc_api.Api2(
+                self.pub_api2: Api2 = massa_jsonrpc_api.Api2(
                     "http://{}:{}".format(self.server.host, pub_api_port)
                 )
                 self.priv_api2 = massa_jsonrpc_api.Api2(

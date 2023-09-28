@@ -1,6 +1,6 @@
 import json
 from functools import partial
-from typing import List
+from typing import List, Any
 from dataclasses import dataclass
 
 import requests
@@ -136,7 +136,7 @@ class Api2:
         self.url = url
         self._api = JsonApi()
 
-    def _make_request(self, *args):
+    def _make_request(self, *args) -> Any:
         f = getattr(self._api, args[0])
         headers, payload = f(*args[1:])
         # print(f"{headers=}")

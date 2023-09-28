@@ -78,6 +78,9 @@ class CompileOpts:
 
 
 class CompileUnit:
+    """ Easily clone using git,  massa node / client / leddger editor
+    """
+    
     def __init__(self, server: Server, compile_opts: CompileOpts):
         """ Init a CompileUnit object
 
@@ -89,7 +92,7 @@ class CompileUnit:
         self.compile_opts = compile_opts
 
         self._repo = ""
-        self._patches: Dict[str, str | Path | PatchConstant] = {}
+        self._patches: Dict[str, bytes | str | Path | PatchConstant] = {}
 
     @staticmethod
     def from_compile_unit(cu: "CompileUnit", repo_sync: bool = False) -> "CompileUnit":
@@ -156,7 +159,7 @@ class CompileUnit:
             res = patchset.apply(root=tmp_folder, fuzz=True)
             if not res:
                 raise RuntimeError(
-                    f"Could not apply patch {patch_name} ({patch}) to repo: {tmp_folder}"
+                    f"Could not apply patch {patch_name} ({patch!r}) to repo: {tmp_folder}"
                 )
             print("Done.")
 
@@ -192,7 +195,7 @@ class CompileUnit:
         constant_name: str,
         new_value: str,
         constant_type: Optional[str] = None,
-        constant_file: Optional[Path] = "massa-models/src/config/constants.rs",
+        constant_file: Optional[Path] = Path("massa-models/src/config/constants.rs"),
     ):
         """Add a patch updating a constant value in a rust file
 

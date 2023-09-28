@@ -20,5 +20,8 @@ massa_test_framework.egg-info
 # Mypy
 .mypy_cache
 
+# Sphinx
+doc/_build
+
 # IDE
 .idea
