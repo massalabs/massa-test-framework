@@ -17,7 +17,7 @@ class KeyPair:
         signing_key, verifying_key = ed25519.create_keypair()
         return KeyPair(secret_key=signing_key, public_key=verifying_key)
 
-    def from_secret_massa_encoded(self, private: str):
+    def from_secret_massa_encoded(private: str):
         # Strip identifier
         private = private[1:]
         # Decode base58
