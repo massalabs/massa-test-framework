@@ -20,6 +20,10 @@ from massa_proto_python.massa.api.v1 import (
     PrivateServiceStub,
     GetStatusRequest,
     GetStatusResponse,
+    QueryStateRequest,
+    QueryStateResponse,
+    AddressBytecodeFinal,
+    ExecutionQueryRequestItem
 )
 
 
@@ -456,6 +460,17 @@ class Node:
             )
         )
         return get_mip_status_response
+    
+    def query_final_bytecode(self, addr) -> QueryStateResponse:
+        addr_bytecode_final_request = AddressBytecodeFinal(address=addr)
+        execution_query_request = ExecutionQueryRequestItem(address_bytecode_final=addr_bytecode_final_request)
+        request = QueryStateRequest(queries=[execution_query_request])
+        query_state_response: QueryStateResponse = asyncio.run(
+            self._public_grpc_call(
+                self.grpc_host, self.pub_grpc_port, "query_state", request
+            )
+        )
+        return query_state_response.responses[0]
 
     #
     def wait_ready(self, timeout=20) -> None:
