@@ -312,6 +312,9 @@ class Node:
         """
         return self.edit_json(self.config_files["initial_peers.json"])
 
+    def edit_initial_deferred_credits(self):
+        return self.edit_json(self.config_files["deferred_credits.json"])
+    
     def edit_initial_rolls(self):
         return self.edit_json(self.config_files["initial_rolls.json"])
 
