@@ -315,7 +315,7 @@ class Node:
 
     def edit_initial_deferred_credits(self):
         return self.edit_json(self.config_files["deferred_credits.json"])
-    
+
     def edit_initial_rolls(self):
         return self.edit_json(self.config_files["initial_rolls.json"])
 
@@ -457,7 +457,7 @@ class Node:
             )
         )
         return get_mip_status_response
-    
+
     def query_state(self, query_state_request) -> QueryStateResponse:
         """Queries the execution state of the node.
 
