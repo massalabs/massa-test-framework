@@ -39,8 +39,7 @@ with node1.start():
     `python3 -m venv venv_dev`
 
 - Install dev requirements:
-    `venv_dev/bin/python -m pip install -e __PATH_TO_MASSA_PROTO_PYTHON_REPO__`
-    `venv_dev/bin/python -m pip install -r requirements_dev.txt`
+    `venv_dev/bin/python -m pip install -r requirements-dev.txt`
 
 ## Tools
 
