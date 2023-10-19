@@ -20,6 +20,8 @@ from massa_proto_python.massa.api.v1 import (
     PrivateServiceStub,
     GetStatusRequest,
     GetStatusResponse,
+    QueryStateResponse,
+    QueryStateRequest,
 )
 
 
@@ -312,6 +314,9 @@ class Node:
         """
         return self.edit_json(self.config_files["initial_peers.json"])
 
+    def edit_initial_deferred_credits(self):
+        return self.edit_json(self.config_files["deferred_credits.json"])
+
     def edit_initial_rolls(self):
         return self.edit_json(self.config_files["initial_rolls.json"])
 
@@ -453,6 +458,30 @@ class Node:
             )
         )
         return get_mip_status_response
+
+    def query_state(self, query_state_request: QueryStateRequest) -> QueryStateResponse:
+        """Queries the execution state of the node.
+
+        Example::
+
+            addr_bytecode_final_request = AddressBytecodeFinal(address=addr)
+            execution_query_request = ExecutionQueryRequestItem(address_bytecode_final=addr_bytecode_final_request)
+            query_state_request = QueryStateRequest(queries=[execution_query_request])
+
+            res = node.query_state(query_state_request)
+            print(res.responses[0].result.bytes)
+
+        Args:
+            query_state_request
+
+        """
+
+        query_state_response: QueryStateResponse = asyncio.run(
+            self._public_grpc_call(
+                self.grpc_host, self.pub_grpc_port, "query_state", query_state_request
+            )
+        )
+        return query_state_response
 
     #
     def wait_ready(self, timeout=20) -> None:

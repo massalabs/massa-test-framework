@@ -78,7 +78,6 @@ class CompileOpts:
 
 
 class CompileUnit:
-
     def __init__(self, server: Server, compile_opts: CompileOpts):
         """ Init a CompileUnit object
 
@@ -176,7 +175,7 @@ class CompileUnit:
             # TODO: custom exception like CompilationError?
             raise RuntimeError("Could not build")
 
-        if '--target' in build_cmd:
+        if "--target" in build_cmd:
             # if --target is specified, path is like: target/{TARGET_NAME}/debug/[...]
             rg_res = re.search("--target ([\w-]+)", build_cmd)
             if not rg_res:
