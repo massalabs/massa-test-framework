@@ -21,6 +21,7 @@ from massa_proto_python.massa.api.v1 import (
     GetStatusRequest,
     GetStatusResponse,
     QueryStateResponse,
+    QueryStateRequest,
 )
 
 
@@ -458,20 +459,21 @@ class Node:
         )
         return get_mip_status_response
 
-    def query_state(self, query_state_request) -> QueryStateResponse:
+    def query_state(self, query_state_request: QueryStateRequest) -> QueryStateResponse:
         """Queries the execution state of the node.
 
-        Example usage:
+        Example::
 
-        ```addr_bytecode_final_request = AddressBytecodeFinal(address=addr)
-        execution_query_request = ExecutionQueryRequestItem(address_bytecode_final=addr_bytecode_final_request)
-        query_state_request = QueryStateRequest(queries=[execution_query_request])
+            addr_bytecode_final_request = AddressBytecodeFinal(address=addr)
+            execution_query_request = ExecutionQueryRequestItem(address_bytecode_final=addr_bytecode_final_request)
+            query_state_request = QueryStateRequest(queries=[execution_query_request])
 
-        res = node.query_state(query_state_request)
-        print(res.responses[0].result.bytes)
-        `
+            res = node.query_state(query_state_request)
+            print(res.responses[0].result.bytes)
+
         Args:
             query_state_request
+
         """
 
         query_state_response: QueryStateResponse = asyncio.run(
