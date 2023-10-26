@@ -10,5 +10,5 @@ from .ledger_editor import LedgerEditor
 from .misc import node_keys_list, NodeKeys
 
 # jsonrpc related
-from .massa_py import create_roll_buy, create_roll_sell, create_transaction
+from .massa_py import create_roll_buy, create_roll_sell, create_transaction, create_call_sc, create_execute_sc, RollBuy, RollSell, Transaction, CallSC, ExecuteSC, Datastore
 from .massa_py import KeyPair, decode_pubkey_to_bytes
