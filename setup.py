@@ -20,7 +20,7 @@ setup(
         "base58==2.1",
         "blake3==0.3",
         "varint==1.0.2",
-        "PyNaCl==1.5.0"
+        "PyNaCl==1.5.0",
         "patch-ng==1.17.4",
         "massa-proto-python==0.0.1",
         "kubernetes==28.1.0",
