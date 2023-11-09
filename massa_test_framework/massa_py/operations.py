@@ -76,8 +76,10 @@ class Operation(Serializable):
 
         # Sign
         keypair = KeyPair.from_secret_massa_encoded(sender_private_key)
-        signature = varint.encode(0) + keypair.secret_key.sign(enc_data)
-        return bytes(base58.b58encode_check(signature))
+        # PyNaCL sign -> return SignedMessage, we want the signature here
+        signature = varint.encode(0) + keypair.secret_key.sign(enc_data).signature
+        signature_b58 = base58.b58encode_check(signature)
+        return signature_b58
 
 
 class OperationInput():
