@@ -20,6 +20,8 @@ from massa_proto_python.massa.api.v1 import (
     PrivateServiceStub,
     GetStatusRequest,
     GetStatusResponse,
+    GetStakersRequest,
+    GetStakersResponse,
     QueryStateResponse,
     QueryStateRequest,
 )
@@ -483,7 +485,23 @@ class Node:
         )
         return query_state_response
 
-    #
+    def get_stakers_grpc(self) -> GetStakersResponse:
+        """Queries the gRPC GetStakers method.
+
+        Example:
+            res = node.get_stakers_grpc()
+            print(res.stakers)
+
+        """
+
+        get_stakers_response: GetStakersResponse = asyncio.run(
+            self._public_grpc_call(
+                self.grpc_host, self.pub_grpc_port, "get_stakers", GetStakersRequest()
+            )
+        )
+        
+        return get_stakers_response
+    
     def wait_ready(self, timeout=20) -> None:
         """Wait for node to be ready
 
