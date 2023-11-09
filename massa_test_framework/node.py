@@ -485,11 +485,11 @@ class Node:
         )
         return query_state_response
 
-    def grpc_get_stakers(self) -> GetStakersResponse:
-        """gRPC GetStakers.
+    def get_stakers_grpc(self) -> GetStakersResponse:
+        """Queries the gRPC GetStakers method.
 
-        Example::
-            res = node.grpc_get_stakers()
+        Example:
+            res = node.get_stakers_grpc()
             print(res.stakers)
 
         """
@@ -501,23 +501,6 @@ class Node:
         )
         
         return get_stakers_response
-
-    def grpc_get_status(self) -> GetStatusResponse:
-        """gRPC GetStatus.
-
-        Example::
-            res = node.grpc_get_status()
-            print(res.status)
-
-        """
-
-        get_status_response: GetStatusResponse = asyncio.run(
-            self._public_grpc_call(
-                self.grpc_host, self.pub_grpc_port, "get_status", GetStatusRequest()
-            )
-        )
-        
-        return get_status_response
     
     def wait_ready(self, timeout=20) -> None:
         """Wait for node to be ready

@@ -25,3 +25,7 @@ doc/_build
 
 # IDE
 .idea
+.vscode
+
+kubeconfig*
+
