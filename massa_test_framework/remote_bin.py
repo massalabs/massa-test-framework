@@ -2,6 +2,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 from typing import Optional, Dict, List
 
@@ -17,26 +18,27 @@ class SrcDst:
     dst: Path
 
 
-class RemoteBin:
+class RemoteBin(ABC):
 
+    @abstractmethod
     def __init__(self, server: Server, compile_unit: CompileUnit):
-
-        # Dummy code so the IDE is happy
+        # Dummy code
         self.server = server
         self.compile_unit = compile_unit
         self.start_cmd = [""]
+        self.install_folder = self.install({})
 
-        # self.install_folder = self._install(...)
-        raise NotImplementedError
-
-    def _install(self, to_install: Dict[str, Path | SrcDst], tmp_prefix: str = "remote_bin") -> Path | RemotePath:
+    def install(self, to_install: Dict[str, Path | SrcDst], tmp_prefix: str = "remote_bin_") -> Path | RemotePath:
 
         """
+        Install files from compile unit to a server install folder (tmp folder)
+
         Args:
             to_install: a dict of key (filename), path (relative path in install folder)
+            tmp_prefix: prefix for install folder (created as a tmp folder)
         """
 
-        tmp_folder = self.server.mkdtemp(prefix="remote_bin_")
+        tmp_folder = self.server.mkdtemp(prefix=tmp_prefix)
         repo = self.compile_unit.repo
 
         for filename, to_install_item in to_install.items():
@@ -45,11 +47,11 @@ class RemoteBin:
                 dst = tmp_folder / to_install_item.dst
             else:
                 src = repo / to_install_item
-                dst = tmp_folder / to_install
+                dst = tmp_folder / to_install_item
 
-            print("server mkdir:", dst.parent)
+            # print("server mkdir:", dst.parent)
             self.server.mkdir(dst.parent)
-            print(f"copy_file {src} -> {dst}")
+            # print(f"copy_file {src} -> {dst}")
             copy_file(src, dst)
 
         return tmp_folder
