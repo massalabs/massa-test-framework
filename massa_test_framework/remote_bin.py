@@ -39,9 +39,10 @@ class RemoteBin(ABC):
         """
 
         tmp_folder = self.server.mkdtemp(prefix=tmp_prefix)
+        # self.server.mkdir(tmp_folder)
         repo = self.compile_unit.repo
 
-        for filename, to_install_item in to_install.items():
+        for _filename, to_install_item in to_install.items():
             if isinstance(to_install_item, SrcDst):
                 src = repo / to_install_item.src
                 dst = tmp_folder / to_install_item.dst
@@ -113,5 +114,6 @@ class RemoteBin(ABC):
                 # Note: normal end
                 self.stop(p)
 
+    @abstractmethod
     def stop(self, process):
         pass
