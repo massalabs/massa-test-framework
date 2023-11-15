@@ -62,9 +62,9 @@ class CompileOpts:
             "deferred_credits.json": Path(
                 "massa-node/base_config/deferred_credits.json"
             ),
-            "bootstrap_whitelist.json": Path(
-                "massa-node/base_config/bootstrap_whitelist.json"
-            ),
+            # "bootstrap_whitelist.json": Path(
+            #     "massa-node/base_config/bootstrap_whitelist.json"
+            # ),
             "node_privkey.key": Path("massa-node/config/node_privkey.key"),
             "abi_gas_costs.json": Path(
                 "massa-node/base_config/gas_costs/abi_gas_costs.json"
@@ -233,29 +233,26 @@ class CompileUnit:
         else:
             return BuildKind.Debug
 
+    def bin_path(self, bin_name: str):
+        """Relative path (relative to compilation folder) to (rust compiled) binary"""
+        if self._target:
+            return Path(f"target/{self._target}/{self.build_kind}/{bin_name}")
+        else:
+            return Path(f"target/{self.build_kind}/{bin_name}")
+
     @property
     def massa_node(self) -> Path:
         """Relative path (relative to compilation folder) to massa node binary"""
-        if self._target:
-            return Path(f"target/{self._target}/{self.build_kind}/massa-node")
-        else:
-            return Path(f"target/{self.build_kind}/massa-node")
+        return self.bin_path("massa-node")
 
     @property
     def massa_client(self) -> Path:
         """Relative path (relative to compilation folder) to massa client binary"""
-        if self._target:
-            return Path(f"target/{self._target}/{self.build_kind}/massa-client")
-        else:
-            return Path(f"target/{self.build_kind}/massa-client")
+        return self.bin_path("massa-client")
 
     @property
     def massa_ledger_editor(self) -> Path:
-        # TODO: can we factorize this with massa_node & massa_client?
-        if self._target:
-            return Path(f"target/{self._target}/{self.build_kind}/massa-ledger-editor")
-        else:
-            return Path(f"target/{self.build_kind}/massa-ledger-editor")
+        return self.bin_path("massa-ledger-editor")
 
     @property
     def config_files(self) -> Dict[str, Path]:
