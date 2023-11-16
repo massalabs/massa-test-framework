@@ -31,6 +31,8 @@ class LedgerEditor:
 
     def _install(self) -> Path | RemotePath:
         tmp_folder = self.server.mkdtemp(prefix="massa_ledger_editor_")
+        # print(f"Creating folder: {tmp_folder}")
+        self.server.mkdir(tmp_folder)
         repo = self.compile_unit.repo
 
         for to_create in self._to_create:
@@ -40,10 +42,12 @@ class LedgerEditor:
         for filename, to_install in self._to_install.items():
             src = repo / to_install
             if filename == "massa-ledger-editor":
-                dst = tmp_folder
+                dst = tmp_folder / filename
             else:
                 dst = tmp_folder / to_install
+            # print(f"Creating folder: {dst.parent}")
             self.server.mkdir(dst.parent)
+            # print(f"Copying {src} ({type(src)}) to {dst} ({type(dst)})...")
             copy_file(src, dst)
 
         return tmp_folder
