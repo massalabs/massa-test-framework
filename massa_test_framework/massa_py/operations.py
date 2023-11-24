@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from typing import Dict
 
@@ -19,11 +18,11 @@ class Typed(ABC):
     @classmethod
     def type_id(cls) -> int:
         TYPE_ID = {
-            'Transaction': 0,
-            'RollBuy': 1,
-            'RollSell': 2,
-            'ExecuteSC': 3,
-            'CallSC': 4
+            "Transaction": 0,
+            "RollBuy": 1,
+            "RollSell": 2,
+            "ExecuteSC": 3,
+            "CallSC": 4,
         }
         type_id = TYPE_ID.get(cls.__name__, -1)
         if type_id == -1:
@@ -43,7 +42,7 @@ class Datastore(Serializable):
         self.datastore[key] = value
 
     def serialize(self) -> bytes:
-        enc_datastore = b''
+        enc_datastore = b""
         # number of key-value pairs
         enc_datastore += varint.encode(len(self.datastore))
         for key, value in self.datastore.items():
@@ -67,7 +66,7 @@ class Operation(Serializable):
         enc_op = self.op.serialize()
         return bytes(enc_fee + enc_expire_period + enc_type_id + enc_op)
 
-    def sign(self, creator_public_key, sender_private_key) -> bytes:
+    def sign(self, creator_public_key: str, sender_private_key: str) -> bytes:
         enc_data = self.serialize()
         enc_sender_pub_key = decode_pubkey_to_bytes(creator_public_key)
         enc_data = enc_sender_pub_key + enc_data
@@ -82,11 +81,14 @@ class Operation(Serializable):
         return signature_b58
 
 
-class OperationInput():
-    def __init__(self, creator_public_key, content: Operation, sender_private_key):
+class OperationInput:
+    def __init__(
+        self, creator_public_key: str, content: Operation, sender_private_key: str
+    ):
         self.creator_public_key = creator_public_key
-        self.signature = content.sign(
-            creator_public_key, sender_private_key).decode("utf-8")
+        self.signature = content.sign(creator_public_key, sender_private_key).decode(
+            "utf-8"
+        )
         self.serialized_content = list(content.serialize())
 
 
@@ -116,7 +118,7 @@ class Transaction(InnerOp):
         self.amount = amount
 
     def serialize(self) -> bytes:
-        # guess varint.encode(0) forces user address
+        # varint.encode(0) forces user address
         recipient_address = varint.encode(0) + base58.b58decode_check(
             self.recipient_address[2:]
         )
@@ -137,17 +139,20 @@ class ExecuteSC(InnerOp):
         enc_data_len = varint.encode(len(self.data))
         enc_data = self.data
         enc_datastore = self.datastore.serialize()
-        return bytes(enc_max_gas + enc_max_coins + enc_data_len + enc_data + enc_datastore)
+        return bytes(
+            enc_max_gas + enc_max_coins + enc_data_len + enc_data + enc_datastore
+        )
 
 
 class CallSC(InnerOp):
     def __init__(
-            self,
-            target_address,
-            target_func: str,
-            param: bytes,
-            max_gas: int,
-            coins: int):
+        self,
+        target_address: str,
+        target_func: str,
+        param: bytes,
+        max_gas: int,
+        coins: int,
+    ):
         self.target_address = target_address
         self.target_func = target_func
         self.param = param
@@ -157,18 +162,28 @@ class CallSC(InnerOp):
     def serialize(self) -> bytes:
         enc_max_gas = varint.encode(int(self.max_gas))
         enc_coins = varint.encode(int(self.coins))
-        target_address = varint.encode(0) + base58.b58decode_check(
+        # TODO Add an Address class that serialize according to the type of address
+        # varint.encode(1) forces smart contract address
+        target_address = varint.encode(1) + base58.b58decode_check(
             self.target_address[2:]
         )
-        target_func = self.target_func.encode('utf-8')
+        target_func = self.target_func.encode("utf-8")
         target_func_len_enc = varint.encode(len(target_func))
         param_len_enc = varint.encode(len(self.param))
-        return bytes(enc_max_gas + enc_coins + target_address + target_func_len_enc + target_func + param_len_enc + self.param)
+        return bytes(
+            enc_max_gas
+            + enc_coins
+            + target_address
+            + target_func_len_enc
+            + target_func
+            + param_len_enc
+            + self.param
+        )
 
 
 def create_roll_buy(
-    sender_private_key,
-    creator_public_key,
+    sender_private_key: str,
+    creator_public_key: str,
     fee: int,
     expire_period: int,
     roll_count: int,
@@ -179,8 +194,8 @@ def create_roll_buy(
 
 
 def create_roll_sell(
-    sender_private_key,
-    creator_public_key,
+    sender_private_key: str,
+    creator_public_key: str,
     fee: int,
     expire_period: int,
     roll_count: int,
@@ -191,39 +206,39 @@ def create_roll_sell(
 
 
 def create_transaction(
-    sender_private_key,
-    creator_public_key,
+    sender_private_key: str,
+    creator_public_key: str,
     fee: int,
     expire_period: int,
-    recipient_address,
+    recipient_address: str,
     amount: int,
 ):
-    op = Operation(fee, expire_period,
-                   Transaction(recipient_address, amount))
+    op = Operation(fee, expire_period, Transaction(recipient_address, amount))
     op_in = OperationInput(creator_public_key, op, sender_private_key)
     return op_in.__dict__
 
 
 def create_call_sc(
-    sender_private_key,
-    creator_public_key,
+    sender_private_key: str,
+    creator_public_key: str,
     fee: int,
     expire_period: int,
-    target_address,
+    target_address: str,
     target_func: str,
     param: bytes,
     max_gas: int,
     coins: int,
 ):
-    op = Operation(fee, expire_period,
-                   CallSC(target_address, target_func, param, max_gas, coins))
+    op = Operation(
+        fee, expire_period, CallSC(target_address, target_func, param, max_gas, coins)
+    )
     op_in = OperationInput(creator_public_key, op, sender_private_key)
     return op_in.__dict__
 
 
 def create_execute_sc(
-    sender_private_key,
-    creator_public_key,
+    sender_private_key: str,
+    creator_public_key: str,
     fee: int,
     expire_period: int,
     data: bytes,
@@ -231,7 +246,6 @@ def create_execute_sc(
     max_coins: int,
     datastore: Datastore,
 ):
-    op = Operation(fee, expire_period,
-                   ExecuteSC(data, max_gas, max_coins, datastore))
+    op = Operation(fee, expire_period, ExecuteSC(data, max_gas, max_coins, datastore))
     op_in = OperationInput(creator_public_key, op, sender_private_key)
     return op_in.__dict__
