@@ -36,7 +36,6 @@ from massa_test_framework.server import Server, MassaNodeOpts
 import requests
 import tomlkit
 
-
 class Node:
     def __init__(self, server: Server, compile_unit: CompileUnit):
         """Init a Node (e.g. a Massa Node) object
@@ -281,6 +280,7 @@ class Node:
         # print("is fp closed:", fp.closed)
         # print("end of edit_config")
 
+
     @contextmanager
     def edit_json(self, json_filepath: Path, mode: str = "r+", default_json=None):
         fp = self.server.open(json_filepath, mode)
@@ -499,9 +499,9 @@ class Node:
                 self.grpc_host, self.pub_grpc_port, "get_stakers", GetStakersRequest()
             )
         )
-        
+
         return get_stakers_response
-    
+
     def wait_ready(self, timeout=20) -> None:
         """Wait for node to be ready
 
