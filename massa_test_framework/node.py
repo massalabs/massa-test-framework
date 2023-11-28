@@ -6,7 +6,7 @@ import json
 import time
 from urllib.parse import urlparse
 
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Union
 
 import betterproto
 from grpclib.client import Channel
@@ -35,6 +35,7 @@ from massa_test_framework.server import Server, MassaNodeOpts
 # third party
 import requests
 import tomlkit
+
 
 class Node:
     def __init__(self, server: Server, compile_unit: CompileUnit):
@@ -280,7 +281,6 @@ class Node:
         # print("is fp closed:", fp.closed)
         # print("end of edit_config")
 
-
     @contextmanager
     def edit_json(self, json_filepath: Path, mode: str = "r+", default_json=None):
         fp = self.server.open(json_filepath, mode)
@@ -383,10 +383,21 @@ class Node:
 
         Args:
             operations: a list of serialized operations
+
         Returns:
-            a list of operation id
+            If successful, returns a list of operation IDs.
+
+        Raises:
+            Exception: If send_operation return an error, an exception is raised with the error message.
+
         """
         res = self.pub_api2.send_operations(operations)
+
+        err = res.get("error", None)
+        if err is not None:
+            msg = str(err.get("message", "Unknown error"))
+            raise Exception(msg)
+
         return res["result"]
 
     def node_peers_whitelist(self):
