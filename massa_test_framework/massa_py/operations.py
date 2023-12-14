@@ -6,6 +6,7 @@ from .crypto import KeyPair, decode_pubkey_to_bytes
 import base58
 import varint
 from blake3 import blake3
+import struct
 
 
 class Serializable(ABC):
@@ -66,10 +67,11 @@ class Operation(Serializable):
         enc_op = self.op.serialize()
         return bytes(enc_fee + enc_expire_period + enc_type_id + enc_op)
 
-    def sign(self, creator_public_key: str, sender_private_key: str) -> bytes:
+    def sign(self, creator_public_key: str, sender_private_key: str, chainID: int) -> bytes:
         enc_data = self.serialize()
-        enc_sender_pub_key = decode_pubkey_to_bytes(creator_public_key)
-        enc_data = enc_sender_pub_key + enc_data
+        enc_sender_pub_key = decode_pubkey_to_bytes(creator_public_key) 
+        enc_data = struct.pack('>Q', chainID) + enc_sender_pub_key + enc_data
+
         # Hash
         enc_data = blake3(enc_data).digest()
 
@@ -83,10 +85,10 @@ class Operation(Serializable):
 
 class OperationInput:
     def __init__(
-        self, creator_public_key: str, content: Operation, sender_private_key: str
+        self, creator_public_key: str, content: Operation, sender_private_key: str, chainID: int
     ):
         self.creator_public_key = creator_public_key
-        self.signature = content.sign(creator_public_key, sender_private_key).decode(
+        self.signature = content.sign(creator_public_key, sender_private_key, chainID).decode(
             "utf-8"
         )
         self.serialized_content = list(content.serialize())
@@ -187,9 +189,10 @@ def create_roll_buy(
     fee: int,
     expire_period: int,
     roll_count: int,
+    chainID: int,
 ):
     op = Operation(fee, expire_period, RollBuy(roll_count))
-    op_in = OperationInput(creator_public_key, op, sender_private_key)
+    op_in = OperationInput(creator_public_key, op, sender_private_key, chainID)
     return op_in.__dict__
 
 
@@ -199,9 +202,10 @@ def create_roll_sell(
     fee: int,
     expire_period: int,
     roll_count: int,
+    chainID: int,
 ):
     op = Operation(fee, expire_period, RollSell(roll_count))
-    op_in = OperationInput(creator_public_key, op, sender_private_key)
+    op_in = OperationInput(creator_public_key, op, sender_private_key, chainID)
     return op_in.__dict__
 
 
@@ -212,9 +216,10 @@ def create_transaction(
     expire_period: int,
     recipient_address: str,
     amount: int,
+    chainID: int,
 ):
     op = Operation(fee, expire_period, Transaction(recipient_address, amount))
-    op_in = OperationInput(creator_public_key, op, sender_private_key)
+    op_in = OperationInput(creator_public_key, op, sender_private_key, chainID)
     return op_in.__dict__
 
 
@@ -228,11 +233,12 @@ def create_call_sc(
     param: bytes,
     max_gas: int,
     coins: int,
+    chainID: int,
 ):
     op = Operation(
         fee, expire_period, CallSC(target_address, target_func, param, max_gas, coins)
     )
-    op_in = OperationInput(creator_public_key, op, sender_private_key)
+    op_in = OperationInput(creator_public_key, op, sender_private_key, chainID)
     return op_in.__dict__
 
 
@@ -245,7 +251,8 @@ def create_execute_sc(
     max_gas: int,
     max_coins: int,
     datastore: Datastore,
+    chainID: int,
 ):
     op = Operation(fee, expire_period, ExecuteSC(data, max_gas, max_coins, datastore))
-    op_in = OperationInput(creator_public_key, op, sender_private_key)
+    op_in = OperationInput(creator_public_key, op, sender_private_key, chainID)
     return op_in.__dict__
