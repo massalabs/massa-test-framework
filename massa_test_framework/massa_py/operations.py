@@ -67,9 +67,13 @@ class Operation(Serializable):
         enc_op = self.op.serialize()
         return bytes(enc_fee + enc_expire_period + enc_type_id + enc_op)
 
+    # massa doc https://docs.massa.net/docs/learn/operation-format-execution
     def sign(self, creator_public_key: str, sender_private_key: str, chainID: int) -> bytes:
         enc_data = self.serialize()
         enc_sender_pub_key = decode_pubkey_to_bytes(creator_public_key) 
+        # doc https://docs.massa.net/docs/learn/operation-format-execution
+        # > -> big-endian
+        # Q -> unsigned long long
         enc_data = struct.pack('>Q', chainID) + enc_sender_pub_key + enc_data
 
         # Hash
