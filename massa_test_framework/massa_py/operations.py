@@ -30,6 +30,18 @@ class Typed(ABC):
         return type_id
 
 
+def address_type_id(address: str) -> int:
+    TYPE_ID = {
+        "U": 0,  # User address
+        "S": 1,  # Smart contract address
+    }
+    id_str = address[1]
+    type_id = TYPE_ID.get(id_str, -1)
+    if type_id == -1:
+        raise Exception(f"Unknown type {id_str}")
+    return type_id
+
+
 class InnerOp(Serializable, Typed):
     pass
 
@@ -118,10 +130,9 @@ class Transaction(InnerOp):
         self.amount = amount
 
     def serialize(self) -> bytes:
-        # varint.encode(0) forces user address
-        recipient_address = varint.encode(0) + base58.b58decode_check(
-            self.recipient_address[2:]
-        )
+        recipient_address = varint.encode(
+            address_type_id(self.recipient_address)
+        ) + base58.b58decode_check(self.recipient_address[2:])
         enc_amount = varint.encode(int(self.amount))
         return bytes(recipient_address + enc_amount)
 
@@ -162,11 +173,9 @@ class CallSC(InnerOp):
     def serialize(self) -> bytes:
         enc_max_gas = varint.encode(int(self.max_gas))
         enc_coins = varint.encode(int(self.coins))
-        # TODO Add an Address class that serialize according to the type of address
-        # varint.encode(1) forces smart contract address
-        target_address = varint.encode(1) + base58.b58decode_check(
-            self.target_address[2:]
-        )
+        target_address = varint.encode(
+            address_type_id(self.target_address)
+        ) + base58.b58decode_check(self.target_address[2:])
         target_func = self.target_func.encode("utf-8")
         target_func_len_enc = varint.encode(len(target_func))
         param_len_enc = varint.encode(len(self.param))
