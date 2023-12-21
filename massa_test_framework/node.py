@@ -10,10 +10,13 @@ from typing import List, Dict, Optional, Callable, Union
 
 import betterproto
 from grpclib.client import Channel
+from massa_proto_python.massa.model.v1 import ReadOnlyExecutionOutput
 
 # internal
 from massa_test_framework import massa_jsonrpc_api
 from massa_proto_python.massa.api.v1 import (
+    ExecuteReadOnlyCallRequest,
+    ExecuteReadOnlyCallResponse,
     GetMipStatusRequest,
     GetMipStatusResponse,
     PublicServiceStub,
@@ -513,7 +516,29 @@ class Node:
 
         return get_stakers_response
 
-    def wait_ready(self, timeout=20) -> None:
+    def execute_read_only_call(
+        self, request: ExecuteReadOnlyCallRequest
+    ) -> ReadOnlyExecutionOutput:
+        """
+        Executes a read-only call using the specified request.
+
+        Args:
+            request (ExecuteReadOnlyCallRequest): The request object for the read-only call.
+
+        Returns:
+            ReadOnlyExecutionOutput: The output of the read-only call.
+        """
+        response: ExecuteReadOnlyCallResponse = asyncio.run(
+            self._public_grpc_call(
+                self.grpc_host,
+                self.pub_grpc_port,
+                "execute_read_only_call",
+                request,
+            )
+        )
+        return response.output
+
+    def wait_ready(self, timeout: int = 20) -> None:
         """Wait for node to be ready
 
         Blocking wait for node to be ready
