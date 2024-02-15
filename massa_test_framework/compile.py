@@ -62,9 +62,9 @@ class CompileOpts:
             "deferred_credits.json": Path(
                 "massa-node/base_config/deferred_credits.json"
             ),
-            # "bootstrap_whitelist.json": Path(
-            #     "massa-node/base_config/bootstrap_whitelist.json"
-            # ),
+            "bootstrap_whitelist.json": Path(
+                "massa-node/base_config/bootstrap_whitelist.json"
+            ),
             "node_privkey.key": Path("massa-node/config/node_privkey.key"),
             "abi_gas_costs.json": Path(
                 "massa-node/base_config/gas_costs/abi_gas_costs.json"
