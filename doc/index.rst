@@ -13,6 +13,7 @@ Package massa_test_framework doc
    about_framework
    quickstart
    tips_for_dev
+   k3s_installation_tutorial
    kubernetes_manager
    massa_cluster_manager
 
