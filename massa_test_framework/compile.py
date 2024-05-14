@@ -26,7 +26,7 @@ class PatchConstant:
         with open(root / self.constant_file, "r+") as fp:
             content = fp.read()
             content_sub = re.sub(
-                f"(pub )?const {self.constant_name}: (\w+) = (\w+);",
+                f"(pub )?const {self.constant_name}: ([\w\<\>]+) = ([\w\s\*\(\)]+);",
                 f"\g<1>const {self.constant_name}: \g<2> = {self.new_value};",
                 content,
             )
