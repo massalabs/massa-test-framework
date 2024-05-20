@@ -23,11 +23,12 @@ class PatchConstant:
         # -->
         # pub const MIP_STORE_STATS_BLOCK_CONSIDERED: usize = 10;
 
+        print("f matching (.* const {self.constant_name}[ :].*) = (.*);")
         with open(root / self.constant_file, "r+") as fp:
             content = fp.read()
             content_sub = re.sub(
-                f"(pub )?const {self.constant_name}: ([\w\<\>]+) = ([\w\s\*\(\)]+);",
-                f"\g<1>const {self.constant_name}: \g<2> = {self.new_value};",
+                f"(.* const {self.constant_name}[ :].*) = (.*);",
+                f"\g<1> = {self.new_value};",
                 content,
             )
             fp.seek(0)
