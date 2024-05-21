@@ -15,7 +15,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "paramiko==3.2",
-        "requests==2.31",
+        "requests==2.32.0",
         "tomlkit==0.11",
         "base58==2.1",
         "blake3==0.3.3",
