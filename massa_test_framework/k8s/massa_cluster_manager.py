@@ -20,7 +20,7 @@ Example:
     if __name__ == "__main__":
         # Example usage:
         external_i_ps = ["10.4.3.2"]
-        
+
         ssh_authorized_keys = "ssh-ed25519 XXX_MY_SSH_KEY_XXX simulator@massa.net"
 
         cluster_config = MassaClusterConfig(
@@ -35,9 +35,9 @@ Example:
         launch_infos = manager.launch(cluster_config)
         # Iterate through the LaunchInfo objects
         for launch_info in launch_infos:
-            print(f"Service Name: {launch_info.service_info.name}, 
+            print(f"Service Name: {launch_info.service_info.name},
             Cluster IP: {launch_info.service_info.cluster_i_ps[0]}")
-            print(f"Service Namespace: {launch_info.service_info.namespace}, 
+            print(f"Service Namespace: {launch_info.service_info.namespace},
             External IP: {launch_info.service_info.external_i_ps[0]}")
 
             # Iterate through the ports of the service and print their details
@@ -50,7 +50,7 @@ Example:
 
             # Print container ports
             for container_port in launch_info.pod_info.container_ports:
-                print(f"Container Port Name: {container_port.name}, 
+                print(f"Container Port Name: {container_port.name},
                 Container Port Number: {container_port.container_port}")
                 print(f"Protocol: {container_port.protocol}")
 
@@ -181,6 +181,7 @@ class MassaClusterManager:
             pod_configs.append(pod_config)
 
         # Wait for pods to start
+        print("Waiting for pods to start...")
         time.sleep(cluster_config.startup_pods_timeout)
 
         # Create all services after pods have started
@@ -201,6 +202,7 @@ class MassaClusterManager:
             self.manager.create_service(service_config)
 
         # Wait for services to start
+        print("Waiting for services to start...")
         time.sleep(cluster_config.startup_services_timeout)
 
         # Assuming you have already imported the LaunchInfo class

@@ -6,7 +6,7 @@ import json
 import time
 from urllib.parse import urlparse
 
-from typing import List, Dict, Optional, Callable, Union
+from typing import Container, Generator, List, Dict, Optional, Callable, Union
 
 import betterproto
 from grpclib.client import Channel
@@ -38,6 +38,8 @@ from massa_test_framework.server import Server, MassaNodeOpts
 # third party
 import requests
 import tomlkit
+from tomlkit.toml_document import TOMLDocument
+
 
 
 class Node:
@@ -76,53 +78,6 @@ class Node:
         }
         # print(self.config_files)
 
-        with self.server.open(self.config_files["config.toml"], "r") as fp:
-            cfg = tomlkit.load(fp)
-
-            pub_api_port = urlparse("http://" + cfg["api"]["bind_public"]).port
-            priv_api_port = urlparse("http://" + cfg["api"]["bind_private"]).port
-            pub_grpc_port = urlparse("http://" + cfg["grpc"]["public"]["bind"]).port
-            priv_grpc_port = urlparse("http://" + cfg["grpc"]["private"]["bind"]).port
-
-            if (
-                not pub_api_port
-                or not priv_api_port
-                or not pub_grpc_port
-                or not priv_grpc_port
-            ):
-                raise RuntimeError("Could not get api & grpc port from config")
-
-            if server.server_opts.massa:
-                massa_server_opts: MassaNodeOpts = server.server_opts.massa
-                self.pub_api2 = massa_jsonrpc_api.Api2(
-                    "http://{}:{}".format(
-                        self.server.host, massa_server_opts.jsonrpc_public_port
-                    )
-                )
-                print("pub_api2 url:", self.pub_api2.url)
-                self.priv_api2 = massa_jsonrpc_api.Api2(
-                    "http://{}:{}".format(
-                        self.server.host, massa_server_opts.jsonrpc_private_port
-                    )
-                )
-                self.grpc_host = self.server.host
-                self.pub_grpc_port = massa_server_opts.grpc_public_port
-                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
-                self.priv_grpc_port = massa_server_opts.grpc_private_port
-                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
-
-            else:
-                self.pub_api2: Api2 = massa_jsonrpc_api.Api2(
-                    "http://{}:{}".format(self.server.host, pub_api_port)
-                )
-                self.priv_api2 = massa_jsonrpc_api.Api2(
-                    "http://{}:{}".format(self.server.host, priv_api_port)
-                )
-                self.grpc_host = self.server.host
-                self.pub_grpc_port = pub_grpc_port
-                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
-                self.priv_grpc_port = priv_grpc_port
-                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
 
     def _install(self) -> Path | RemotePath:
         tmp_folder = self.server.mkdtemp(prefix="massa_")
@@ -204,6 +159,55 @@ class Node:
             stderr: where to log node standard error output (default to sys.stderr)
         """
 
+        with self.server.open(self.config_files["config.toml"], "r") as fp:
+            cfg = tomlkit.load(fp)
+
+            pub_api_port = urlparse("http://" + cfg["api"]["bind_public"]).port
+            priv_api_port = urlparse("http://" + cfg["api"]["bind_private"]).port
+            pub_grpc_port = urlparse("http://" + cfg["grpc"]["public"]["bind"]).port
+            priv_grpc_port = urlparse("http://" + cfg["grpc"]["private"]["bind"]).port
+
+            if (
+                not pub_api_port
+                or not priv_api_port
+                or not pub_grpc_port
+                or not priv_grpc_port
+            ):
+                raise RuntimeError("Could not get api & grpc port from config")
+
+            if self.server.server_opts.massa:
+                massa_server_opts: MassaNodeOpts = self.server.server_opts.massa
+                self.pub_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(
+                        self.server.host, massa_server_opts.jsonrpc_public_port
+                    )
+                )
+                print("pub_api2 url:", self.pub_api2.url)
+                self.priv_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(
+                        self.server.host, massa_server_opts.jsonrpc_private_port
+                    )
+                )
+                self.grpc_host = self.server.host
+                self.pub_grpc_port = massa_server_opts.grpc_public_port
+                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
+                self.priv_grpc_port = massa_server_opts.grpc_private_port
+                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
+
+            else:
+                self.pub_api2: Api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(self.server.host, pub_api_port)
+                )
+                self.priv_api2 = massa_jsonrpc_api.Api2(
+                    "http://{}:{}".format(self.server.host, priv_api_port)
+                )
+                self.grpc_host = self.server.host
+                self.pub_grpc_port = pub_grpc_port
+                self.pub_grpc_url = "{}:{}".format(self.server.host, pub_grpc_port)
+                self.priv_grpc_port = priv_grpc_port
+                self.priv_grpc_url = "{}:{}".format(self.server.host, priv_grpc_port)
+            print("pub_api2 url:", self.pub_api2.url)
+
         cmd = " ".join(self.node_start_cmd)
         if args:
             args_joined = " ".join(args)
@@ -267,11 +271,12 @@ class Node:
     #         fp.close()
 
     @contextmanager
-    def edit_config(self):
+    def edit_config(self) -> Generator[TOMLDocument, None, None]:
         """Edit config.toml (as a context manager). Must be called before start()"""
         # print("Editing config", self.config_path)
-        fp = self.server.open(self.config_files["config.toml"], "r+")
+        fp = self.server.open(str(self.config_files["config.toml"]), "r+")
         cfg = tomlkit.load(fp)
+
         try:
             yield cfg
         finally:
@@ -334,9 +339,6 @@ class Node:
 
     def edit_bootstrap_whitelist(self):
         return self.edit_json(self.config_files["bootstrap_whitelist.json"])
-
-    def remove_bootstrap_whitelist(self):
-        return self.server.remove(self.config_files["bootstrap_whitelist.json"])
 
     # API
 
