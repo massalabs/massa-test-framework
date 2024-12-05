@@ -83,7 +83,7 @@ class CompileUnit:
         self.server = server
         self.compile_opts = compile_opts
 
-        self._repo = ""
+        self._repo: Path = Path("")
         self._target = ""
         self._patches: Dict[str, bytes | str | Path | PatchConstant] = {}
 
@@ -115,7 +115,18 @@ class CompileUnit:
         Raise:
             RuntimeError: if git clone return non 0, cargo build return non 0, patch cannot be applied
         """
-        tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
+        # build or rebuild into the predefined directory
+        if self.compile_opts.already_compiled is not None:
+            # assuming we are in compile it means me want to rebuild
+            # and reuse the same folder
+            # TODO: if the folder exists do a git pull instead of clone
+            # for now we assume the user just want to reuse he folder name
+            tmp_folder = self.compile_opts.already_compiled
+            if tmp_folder.exists():
+                self.server.rmtree(str(tmp_folder))
+            #self.server.mkdir(tmp_folder)
+        else: # use a temporary folder
+            tmp_folder = self.server.mkdtemp(prefix="compile_massa_")
         # print(self.compile_opts)
         # print(type(self.compile_opts))
         cmd = ["git", "clone"]

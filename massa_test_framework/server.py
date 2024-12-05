@@ -281,6 +281,11 @@ class Server:
             os.unlink(path)
         else:
             self.server.remove(str(path))
+    def rmtree(self, path: str) -> None:
+        if self.server_opts.local:
+            shutil.rmtree(path)
+        else:
+            raise NotImplementedError("Not implemented for remote server")
 
     def stop(self, process):
         if self.server_opts.local:
