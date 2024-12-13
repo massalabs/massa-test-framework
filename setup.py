@@ -14,7 +14,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
     install_requires=[
-        "paramiko==3.2",
+        "paramiko==3.4.0",
         "requests==2.31",
         "tomlkit==0.11",
         "base58==2.1",
