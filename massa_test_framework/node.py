@@ -422,6 +422,11 @@ class Node:
         print("get_stakers", res, type(res))
         return res
 
+    def get_blockclique_block_by_slot(self, period: int, thread: int):
+        res = self.pub_api2.get_blockclique_block_by_slot(period, thread)
+        print("get_blockclique_block_by_slot", res, type(res))
+        return res
+    
     # API GRPC
 
     async def _public_grpc_call(

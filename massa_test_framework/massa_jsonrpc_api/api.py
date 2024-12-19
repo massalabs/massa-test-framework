@@ -113,6 +113,19 @@ class JsonApi:
         )
         return headers, payload
 
+    @staticmethod
+    def get_blockclique_block_by_slot(period: int, thread: int):
+        headers = {"Content-type": "application/json"}
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "get_blockclique_block_by_slot",
+                "id": 0,
+                "params": [{"period": period, "thread": thread}],
+            }
+        )
+        return headers, payload
+
 
 # class Api:
 #     def __init__(self, url) -> None:
